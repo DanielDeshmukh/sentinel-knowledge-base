@@ -1,0 +1,168 @@
+import React from 'react';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom';
+import { Toaster } from 'react-hot-toast';
+import { AuthProvider, useAuth } from './context/AuthContext';
+import Login from './pages/Login';
+import Chat from './pages/Chat';
+import Documents from './pages/Documents';
+import Admin from './pages/Admin';
+import Navbar from './components/Navbar';
+import Landing from './pages/Landing';
+
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      retry: 1,
+      staleTime: 5 * 60 * 1000,
+    },
+  },
+});
+
+function ProtectedRoute({ children }: { children: React.ReactNode }) {
+  const { user, loading } = useAuth();
+
+  if (loading) {
+    return <div className="loading">CONNECTING TO WORKSPACE</div>;
+  }
+
+  if (!user) {
+    return <Navigate to="/login" replace />;
+  }
+
+  return <>{children}</>;
+}
+
+function AdminRoute({ children }: { children: React.ReactNode }) {
+  const { user, loading } = useAuth();
+
+  if (loading) {
+    return <div className="loading">CONNECTING TO WORKSPACE</div>;
+  }
+
+  if (!user || user.role !== 'admin') {
+    return <Navigate to="/chat" replace />;
+  }
+
+  return <>{children}</>;
+}
+
+function HomeRoute() {
+  const { user, loading } = useAuth();
+
+  if (loading) {
+    return <div className="loading">CONNECTING TO WORKSPACE</div>;
+  }
+
+  return user ? <Navigate to="/chat" replace /> : <Landing />;
+}
+
+function PageHeader() {
+  const location = useLocation();
+  const { user } = useAuth();
+
+  const pageMap: Record<string, string> = {
+    '/chat': 'ASK SENTINEL',
+    '/documents': 'KNOWLEDGE BASE',
+    '/admin': 'INGESTION',
+    '/admin/access': 'ACCESS CONTROL',
+  };
+
+  const pageTitle = pageMap[location.pathname] || 'WORKSPACE';
+
+  return (
+    <header className="topbar">
+      <div className="topbar-left">
+        <button className="mobile-menu-button icon-button" onClick={() => {
+          const sidebar = document.querySelector('.sidebar');
+          if (sidebar) sidebar.classList.toggle('sidebar-open');
+        }} aria-label="Open navigation">
+          <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
+        </button>
+        <span className="topbar-root">WORKSPACE</span>
+        <span className="slash">/</span>
+        <span>{pageTitle}</span>
+      </div>
+      <div className="topbar-right">
+        <span className="topbar-status">
+          <i /> WORKSPACE ONLINE
+        </span>
+        <span className="topbar-divider" />
+        <span className="topbar-account">
+          <span className="tiny-avatar">{user?.email?.[0]?.toUpperCase() || 'S'}</span>
+          <span>{user?.role?.toUpperCase() || 'SIGN IN'}</span>
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M6 9l6 6 6-6"/></svg>
+        </span>
+      </div>
+    </header>
+  );
+}
+
+function AppLayout({ children }: { children: React.ReactNode }) {
+  const location = useLocation();
+  const hasWorkspaceChrome = location.pathname !== '/' && location.pathname !== '/login';
+
+  return (
+    <div className="app-shell">
+      {hasWorkspaceChrome && <Navbar />}
+      {hasWorkspaceChrome && <PageHeader />}
+      <main className={hasWorkspaceChrome ? 'main-area' : ''}>
+        {hasWorkspaceChrome ? (
+          <div className="main-inner">{children}</div>
+        ) : (
+          children
+        )}
+      </main>
+    </div>
+  );
+}
+
+function AppRoutes() {
+  return (
+    <Routes>
+      <Route path="/" element={<HomeRoute />} />
+      <Route path="/login" element={<Login />} />
+      <Route
+        path="/chat"
+        element={
+          <ProtectedRoute>
+            <Chat />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/documents"
+        element={
+          <ProtectedRoute>
+            <Documents />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/admin"
+        element={
+          <AdminRoute>
+            <Admin />
+          </AdminRoute>
+        }
+      />
+    </Routes>
+  );
+}
+
+function App() {
+  return (
+    <QueryClientProvider client={queryClient}>
+      <AuthProvider>
+        <BrowserRouter>
+          <AppLayout>
+            <AppRoutes />
+          </AppLayout>
+          <Toaster position="top-right" />
+        </BrowserRouter>
+      </AuthProvider>
+    </QueryClientProvider>
+  );
+}
+
+export default App;
