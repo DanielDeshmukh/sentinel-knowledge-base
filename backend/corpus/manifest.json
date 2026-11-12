@@ -202,6 +202,60 @@
       "retrieved_at": null,
       "reuse_basis": "Original synthetic demonstration content.",
       "synthetic": true
+    },
+    {
+      "path": "restricted/phishing-account-compromise-report.md",
+      "title": "Account Compromise Incident Report",
+      "classification": "restricted",
+      "source_urls": [],
+      "retrieved_at": null,
+      "reuse_basis": "Original synthetic demonstration content.",
+      "synthetic": true
+    },
+    {
+      "path": "restricted/synthetic-penetration-test-findings.md",
+      "title": "Synthetic Penetration Test Findings",
+      "classification": "restricted",
+      "source_urls": [],
+      "retrieved_at": null,
+      "reuse_basis": "Original synthetic demonstration content.",
+      "synthetic": true
+    },
+    {
+      "path": "restricted/synthetic-risk-register.md",
+      "title": "Synthetic Security Risk Register",
+      "classification": "restricted",
+      "source_urls": [],
+      "retrieved_at": null,
+      "reuse_basis": "Original synthetic demonstration content.",
+      "synthetic": true
+    },
+    {
+      "path": "restricted/synthetic-breach-notice-drafts.md",
+      "title": "Synthetic Personal Data Breach Notice Drafts",
+      "classification": "restricted",
+      "source_urls": [],
+      "retrieved_at": null,
+      "reuse_basis": "Original synthetic demonstration content.",
+      "synthetic": true
+    },
+    {
+      "path": "restricted/synthetic-security-architecture-notes.md",
+      "title": "Synthetic Security Architecture Notes",
+      "classification": "restricted",
+      "source_urls": [],
+      "retrieved_at": null,
+      "reuse_basis": "Original synthetic demonstration content.",
+      "synthetic": true
+    },
+    {
+      "path": "restricted/synthetic-dpia-assessment.md",
+      "title": "Synthetic DPIA-Style Assessment",
+      "classification": "restricted",
+      "source_urls": [],
+      "retrieved_at": null,
+      "reuse_basis": "Original synthetic demonstration content.",
+      "synthetic": true
     }
   ]
 }
