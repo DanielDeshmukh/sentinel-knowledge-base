@@ -130,6 +130,78 @@
       "retrieved_at": "2026-11-13",
       "reuse_basis": "Original practical summary based on public CISA guidance; no source text reproduced.",
       "synthetic": false
+    },
+    {
+      "path": "internal/information-security-policy.md",
+      "title": "Information Security Policy",
+      "classification": "internal",
+      "source_urls": [],
+      "retrieved_at": null,
+      "reuse_basis": "Original synthetic demonstration content.",
+      "synthetic": true
+    },
+    {
+      "path": "internal/acceptable-use-policy.md",
+      "title": "Acceptable Use Policy",
+      "classification": "internal",
+      "source_urls": [],
+      "retrieved_at": null,
+      "reuse_basis": "Original synthetic demonstration content.",
+      "synthetic": true
+    },
+    {
+      "path": "internal/access-control-password-standard.md",
+      "title": "Access Control and Authentication Standard",
+      "classification": "internal",
+      "source_urls": [],
+      "retrieved_at": null,
+      "reuse_basis": "Original synthetic demonstration content.",
+      "synthetic": true
+    },
+    {
+      "path": "internal/data-classification-handling.md",
+      "title": "Data Classification and Handling Standard",
+      "classification": "internal",
+      "source_urls": [],
+      "retrieved_at": null,
+      "reuse_basis": "Original synthetic demonstration content.",
+      "synthetic": true
+    },
+    {
+      "path": "internal/incident-response-playbook.md",
+      "title": "Incident Response Playbook",
+      "classification": "internal",
+      "source_urls": [],
+      "retrieved_at": null,
+      "reuse_basis": "Original synthetic demonstration content.",
+      "synthetic": true
+    },
+    {
+      "path": "internal/vendor-security-assessment-template.md",
+      "title": "Vendor Security Assessment Template",
+      "classification": "internal",
+      "source_urls": [],
+      "retrieved_at": null,
+      "reuse_basis": "Original synthetic demonstration content.",
+      "synthetic": true
+    },
+    {
+      "path": "internal/dpdp-readiness-checklist.md",
+      "title": "Digital Personal Data Protection Readiness Checklist",
+      "classification": "internal",
+      "source_urls": [],
+      "retrieved_at": null,
+      "reuse_basis": "Original synthetic demonstration content.",
+      "synthetic": true
+    },
+    {
+      "path": "internal/log-retention-time-sync-sop.md",
+      "title": "Log Retention and Time Synchronization SOP",
+      "classification": "internal",
+      "source_urls": [],
+      "retrieved_at": null,
+      "reuse_basis": "Original synthetic demonstration content.",
+      "synthetic": true
     }
   ]
 }
