@@ -1,0 +1,44 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+*.egg
+*.egg-info/
+dist/
+build/
+*.whl
+.venv/
+venv/
+env/
+
+# Node
+node_modules/
+frontend/dist/
+frontend/build/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Environment
+.env
+.env.local
+
+# Specs are ignored by default; track this approved design spec
+*.md
+!docs/superpowers/specs/2026-11-12-landing-auth-design.md
+
+# Logs
+*.log
+
+# Database
+*.db
+*.sqlite
