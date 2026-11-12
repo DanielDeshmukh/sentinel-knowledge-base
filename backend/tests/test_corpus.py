@@ -62,6 +62,22 @@ class CorpusValidatorTests(unittest.TestCase):
         counts = {"public": 1, "internal": 1, "restricted": 1}
         self.assertEqual(validate_corpus(self.root, counts), [])
 
+    def test_checked_in_corpus_matches_default_counts(self):
+        corpus_root = Path(__file__).resolve().parents[1] / "corpus"
+
+        self.assertEqual(validate_corpus(corpus_root), [])
+
+    def test_cli_default_directory_validates_checked_in_corpus(self):
+        result = subprocess.run(
+            [sys.executable, "-m", "corpus.validate"],
+            cwd=Path(__file__).resolve().parents[1],
+            capture_output=True,
+            text=True,
+        )
+
+        self.assertEqual(result.returncode, 0, result.stdout)
+        self.assertEqual(result.stderr, "")
+
     def test_rejects_heading_after_document_text(self):
         path = self.root / "public/summary.md"
         path.write_text("Preamble\n\n# Public summary\n", encoding="utf-8")
