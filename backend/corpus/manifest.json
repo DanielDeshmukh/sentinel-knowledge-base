@@ -1,0 +1,135 @@
+{
+  "documents": [
+    {
+      "path": "public/dpdp-act-2023-overview.md",
+      "title": "Digital Personal Data Protection Act, 2023: Overview",
+      "classification": "public",
+      "source_urls": [
+        "https://www.meity.gov.in/static/uploads/2024/06/2bf1f0e9f04e6fb4f8fef35e82c42aa5.pdf"
+      ],
+      "retrieved_at": "2026-11-13",
+      "reuse_basis": "Original summary of official source material; no source text reproduced.",
+      "synthetic": false
+    },
+    {
+      "path": "public/dpdp-rules-2025-overview.md",
+      "title": "Digital Personal Data Protection Rules, 2025: Overview",
+      "classification": "public",
+      "source_urls": [
+        "https://www.meity.gov.in/static/uploads/2025/11/53450e6e5dc0bfa85ebd78686cadad39.pdf",
+        "https://www.pib.gov.in/PressReleasePage.aspx?PRID=2190655"
+      ],
+      "retrieved_at": "2026-11-13",
+      "reuse_basis": "Original summary of Gazette text and government backgrounder; no source text reproduced.",
+      "synthetic": false
+    },
+    {
+      "path": "public/pib-dpdp-rules-backgrounder.md",
+      "title": "PIB Backgrounder on the DPDP Rules, 2025",
+      "classification": "public",
+      "source_urls": [
+        "https://www.pib.gov.in/PressReleasePage.aspx?PRID=2190655",
+        "https://www.meity.gov.in/static/uploads/2025/11/53450e6e5dc0bfa85ebd78686cadad39.pdf",
+        "https://www.meity.gov.in/static/uploads/2024/06/2bf1f0e9f04e6fb4f8fef35e82c42aa5.pdf"
+      ],
+      "retrieved_at": "2026-11-13",
+      "reuse_basis": "Original summary of a government backgrounder and linked legal texts; no source text reproduced.",
+      "synthetic": false
+    },
+    {
+      "path": "public/nist-privacy-framework-dpdp-concepts.md",
+      "title": "NIST Privacy Framework and DPDP: Conceptual Comparison",
+      "classification": "public",
+      "source_urls": [
+        "https://www.nist.gov/privacy-framework",
+        "https://www.meity.gov.in/static/uploads/2024/06/2bf1f0e9f04e6fb4f8fef35e82c42aa5.pdf",
+        "https://www.meity.gov.in/static/uploads/2025/11/53450e6e5dc0bfa85ebd78686cadad39.pdf"
+      ],
+      "retrieved_at": "2026-11-13",
+      "reuse_basis": "Original conceptual comparison based on cited official sources; no source text reproduced.",
+      "synthetic": false
+    },
+    {
+      "path": "public/cert-in-incident-reporting-directions.md",
+      "title": "CERT-In Directions on Cyber Incident Reporting",
+      "classification": "public",
+      "source_urls": [
+        "https://www.cert-in.org.in/PDF/CERT-In_Directions_70B_28.04.2022.pdf"
+      ],
+      "retrieved_at": "2026-11-13",
+      "reuse_basis": "Original summary of official government directions; no source text reproduced.",
+      "synthetic": false
+    },
+    {
+      "path": "public/cert-in-audit-guidelines-overview.md",
+      "title": "CERT-In AI Security Auditing Guidelines: Overview",
+      "classification": "public",
+      "source_urls": [
+        "https://www.cert-in.org.in/PDF/AI_Security_Auditing_Guidelines.pdf",
+        "https://www.cert-in.org.in/PDF/CERT-In_Directions_70B_28.04.2022.pdf"
+      ],
+      "retrieved_at": "2026-11-13",
+      "reuse_basis": "Original summary of official government guidance and directions; no source text reproduced.",
+      "synthetic": false
+    },
+    {
+      "path": "public/nist-sp-800-61r3-incident-response.md",
+      "title": "NIST SP 800-61 Revision 3: Incident Response",
+      "classification": "public",
+      "source_urls": [
+        "https://csrc.nist.gov/pubs/sp/800/61/r3/final",
+        "https://nvlpubs.nist.gov/nistpubs/SpecialPublications/NIST.SP.800-61r3.pdf",
+        "https://www.nist.gov/cyberframework"
+      ],
+      "retrieved_at": "2026-11-13",
+      "reuse_basis": "Original summary of official NIST publications; no source text reproduced.",
+      "synthetic": false
+    },
+    {
+      "path": "public/nist-csf-2-overview.md",
+      "title": "NIST Cybersecurity Framework 2.0: Overview",
+      "classification": "public",
+      "source_urls": [
+        "https://www.nist.gov/cyberframework",
+        "https://nvlpubs.nist.gov/nistpubs/CSWP/NIST.CSWP.29.pdf"
+      ],
+      "retrieved_at": "2026-11-13",
+      "reuse_basis": "Original summary of official NIST publications; no source text reproduced.",
+      "synthetic": false
+    },
+    {
+      "path": "public/cisa-incident-vulnerability-playbooks.md",
+      "title": "CISA Incident and Vulnerability Response Playbooks",
+      "classification": "public",
+      "source_urls": [
+        "https://www.cisa.gov/resources-tools/resources/federal-government-cybersecurity-incident-and-vulnerability-response-playbooks",
+        "https://www.cisa.gov/sites/default/files/2024-08/Federal_Government_Cybersecurity_Incident_and_Vulnerability_Response_Playbooks_508C.pdf"
+      ],
+      "retrieved_at": "2026-11-13",
+      "reuse_basis": "Original summary of official government publications; no source text reproduced.",
+      "synthetic": false
+    },
+    {
+      "path": "public/iso-27001-2022-original-overview.md",
+      "title": "ISO/IEC 27001:2022: Original Overview",
+      "classification": "public",
+      "source_urls": [
+        "https://www.iso.org/standard/27001"
+      ],
+      "retrieved_at": "2026-11-13",
+      "reuse_basis": "Independently written high-level summary of the official standard description; no paid standard text or controls reproduced.",
+      "synthetic": false
+    },
+    {
+      "path": "public/security-awareness-basics.md",
+      "title": "Practical Security Awareness Basics",
+      "classification": "public",
+      "source_urls": [
+        "https://www.cisa.gov/cybersecurity-awareness-month"
+      ],
+      "retrieved_at": "2026-11-13",
+      "reuse_basis": "Original practical summary based on public CISA guidance; no source text reproduced.",
+      "synthetic": false
+    }
+  ]
+}
