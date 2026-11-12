@@ -1,4 +1,6 @@
 import json
+import subprocess
+import sys
 import tempfile
 import unittest
 from pathlib import Path
@@ -134,6 +136,16 @@ class CorpusValidatorTests(unittest.TestCase):
         )
 
         self.assertIn("manifest.json:classification_count_mismatch", issues)
+
+    def test_module_cli_does_not_emit_runtime_warning(self):
+        result = subprocess.run(
+            [sys.executable, "-m", "corpus.validate", str(self.root)],
+            cwd=Path(__file__).resolve().parents[1],
+            capture_output=True,
+            text=True,
+        )
+
+        self.assertNotIn("RuntimeWarning", result.stderr)
 
 
 if __name__ == "__main__":
