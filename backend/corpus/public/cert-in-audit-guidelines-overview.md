@@ -6,6 +6,8 @@
 
 CERT-In's official PDF identifies itself as "Artificial Intelligence (AI) Security Auditing Guidelines," version 1.0, dated 4 November 2026. It presents a risk-based approach for assessing AI systems. This summary covers that document and does not make claims about other audit policies that are not cited here.
 
+The project specification also references a separate "Comprehensive Cyber Security Audit Policy Guidelines v1.0" dated 25 July 2025. Its primary text was not verified during this source review, so this corpus does not summarize or rely on it.
+
 ## Main ideas
 
 - Classify each AI system into one of four risk tiers: Low, Moderate, High, or Critical.
