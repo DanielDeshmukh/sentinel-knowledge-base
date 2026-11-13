@@ -97,7 +97,10 @@ def upgrade_corpus_schema(connection: Connection) -> None:
             filename VARCHAR NOT NULL,
             status VARCHAR NOT NULL DEFAULT 'running'
                 CHECK (status IN ('running', 'succeeded', 'failed')),
-            stage VARCHAR NOT NULL DEFAULT 'upload',
+            stage VARCHAR NOT NULL DEFAULT 'upload'
+                CHECK (stage IN ('upload', 'parse', 'regex_validate', 'normalize',
+                    'recheck', 'chunk', 'embed', 'stage_vectors', 'promote',
+                    'searchable', 'failed')),
             sequence INTEGER NOT NULL DEFAULT 0,
             progress JSON NOT NULL DEFAULT '{}'::json,
             diagnostics JSON NOT NULL DEFAULT '[]'::json,

@@ -1,5 +1,11 @@
+import asyncio
+import json
+import queue
+import threading
+from datetime import date
+
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Form
-from starlette.concurrency import run_in_threadpool
+from fastapi.responses import StreamingResponse
 from sqlalchemy.orm import Session
 from typing import List
 from core.database import get_db
@@ -9,18 +15,20 @@ from models.chunk import Chunk, StagingChunk
 from models.schemas import (
     UserCreate, UserLogin, Token, UserResponse,
     DocumentResponse, ChatRequest, ChatResponse, Citation,
-    IngestionResponse, RoleUpdate
+    CorpusJobStatusResponse, RoleUpdate
 )
 from services.auth import (
     hash_password, verify_password, create_access_token,
     get_current_user, require_admin
 )
 from services.ingestion import process_ingestion
-from services.embedding import EmbeddingServiceUnavailable
+from services.corpus_job_store import CorpusJobStore
+from models.corpus_ingestion_job import CorpusIngestionJob
+from corpus.parser import CorpusMetadata
 from services.retrieval import handle_chat
-from core.database import SessionLocal
 
 router = APIRouter()
+corpus_job_store = CorpusJobStore()
 
 
 # ============ Auth Routes ============
@@ -80,13 +88,22 @@ async def chat(chat_request: ChatRequest, user: User = Depends(get_current_user)
 @router.get("/documents", response_model=List[DocumentResponse])
 async def list_documents(user: User = Depends(get_current_user), db: Session = Depends(get_db)):
     if user.role == "admin":
-        return db.query(Document).all()
+        return db.query(Document).filter(Document.sync_state == "searchable").all()
     elif user.role == "restricted":
-        return db.query(Document).filter(Document.classification.in_(["public", "internal", "restricted"])).all()
+        return db.query(Document).filter(
+            Document.sync_state == "searchable",
+            Document.classification.in_(["public", "internal", "restricted"]),
+        ).all()
     elif user.role == "internal":
-        return db.query(Document).filter(Document.classification.in_(["public", "internal"])).all()
+        return db.query(Document).filter(
+            Document.sync_state == "searchable",
+            Document.classification.in_(["public", "internal"]),
+        ).all()
     else:
-        return db.query(Document).filter(Document.classification == "public").all()
+        return db.query(Document).filter(
+            Document.sync_state == "searchable",
+            Document.classification == "public",
+        ).all()
 
 
 @router.get("/documents/{doc_id}", response_model=DocumentResponse)
@@ -111,22 +128,111 @@ async def delete_document(doc_id: str, user: User = Depends(require_admin), db: 
 
 # ============ Ingestion Routes ============
 
-@router.post("/ingest", response_model=IngestionResponse)
+@router.post("/ingest")
 async def ingest(
     file: UploadFile = File(...),
     title: str = Form(...),
     classification: str = Form("restricted"),
+    source_urls: str = Form("[]"),
+    retrieved_at: str = Form(""),
+    reuse_basis: str = Form(""),
+    synthetic: bool = Form(False),
+    synthetic_label: str = Form(""),
     user: User = Depends(require_admin),
     db: Session = Depends(get_db)
 ):
     try:
-        result = await run_in_threadpool(
-            process_ingestion, db, file, title, classification, user.id
-        )
-    except EmbeddingServiceUnavailable as error:
-        db.rollback()
-        raise HTTPException(status_code=503, detail=str(error)) from error
-    return result
+        parsed_sources = json.loads(source_urls or "[]")
+    except json.JSONDecodeError:
+        parsed_sources = []
+    if not isinstance(parsed_sources, list) or any(not isinstance(url, str) for url in parsed_sources):
+        parsed_sources = []
+    try:
+        retrieved_date = date.fromisoformat(retrieved_at) if retrieved_at else None
+    except ValueError:
+        retrieved_date = None
+
+    metadata = CorpusMetadata(
+        title=title,
+        classification=classification,
+        source_urls=tuple(parsed_sources),
+        retrieved_at=retrieved_date,
+        reuse_basis=reuse_basis,
+        synthetic=synthetic,
+        synthetic_label=synthetic_label or None,
+    )
+    job = corpus_job_store.create(user.id, file.filename or "upload")
+    event_queue: queue.Queue = queue.Queue()
+
+    def publish_progress(payload: dict) -> None:
+        event_queue.put(corpus_job_store.record_progress(job["id"], payload))
+
+    def run_worker() -> None:
+        try:
+            process_ingestion(
+                db,
+                file,
+                metadata,
+                user.id,
+                job["id"],
+                publish_progress,
+            )
+        except Exception:
+            db.rollback()
+            try:
+                publish_progress({
+                    "stage": "failed",
+                    "status": "failed",
+                    "message": "Ingestion failed; no document was made searchable",
+                    "error_code": "INGESTION_FAILED",
+                    "terminal": True,
+                })
+            finally:
+                event_queue.put(None)
+        else:
+            event_queue.put(None)
+
+    async def event_stream():
+        worker = threading.Thread(target=run_worker, name=f"corpus-ingest-{job['id']}", daemon=True)
+        worker.start()
+        try:
+            while True:
+                try:
+                    event = await asyncio.to_thread(event_queue.get, True, 15)
+                except queue.Empty:
+                    yield ": keep-alive\n\n"
+                    continue
+                if event is None:
+                    break
+                event_id = event.get("sequence", "")
+                yield f"id: {event_id}\nevent: progress\ndata: {json.dumps(event, separators=(',', ':'))}\n\n"
+        finally:
+            worker.join(timeout=1)
+
+    return StreamingResponse(
+        event_stream(),
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache, no-transform",
+            "X-Accel-Buffering": "no",
+            "X-Corpus-Job-ID": job["id"],
+        },
+    )
+
+
+@router.get("/admin/corpus/jobs/{job_id}", response_model=CorpusJobStatusResponse)
+async def get_corpus_job_status(
+    job_id: str,
+    user: User = Depends(require_admin),
+    db: Session = Depends(get_db),
+):
+    job = db.query(CorpusIngestionJob).filter(
+        CorpusIngestionJob.id == job_id,
+        CorpusIngestionJob.admin_id == user.id,
+    ).first()
+    if not job:
+        raise HTTPException(status_code=404, detail="Ingestion job not found")
+    return job
 
 
 # ============ Admin Routes ============

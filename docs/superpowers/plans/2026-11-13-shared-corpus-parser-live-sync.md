@@ -192,13 +192,13 @@ def process_ingestion(
 
 The existing admin-only upload endpoint becomes a streamed response with `text/event-stream`. Each event contains `job_id`, `sequence`, `stage`, `status`, `message`, optional `completed`, `total`, `timing_ms`, and safe `diagnostics`. `GET /admin/corpus/jobs/{job_id}` is admin-only and returns only the owning admin's job (404 for another admin's job).
 
-- [ ] **Step 1: Write failing tests for progress events, job authorization, terminal states, staging invisibility, and cleanup after embedding/promotion failure.**
-- [ ] **Step 2: Run `venv\Scripts\python.exe -m unittest tests.test_ingestion tests.test_corpus_jobs tests.test_corpus_routes tests.test_retrieval -v` and verify failures are caused by the missing stream/job behavior.**
-- [ ] **Step 3: Implement the ordered stages:** upload, parse, regex_validate, optional normalize, recheck, chunk, embed, stage_vectors, promote, searchable. Use monotonic sequence IDs and update the job with a separate short DB transaction per event.
-- [ ] **Step 4: Batch provider embedding calls at 100 inputs or fewer.** Write staged vectors in batches and persist `vectors_written` after each batch; ensure retrieval queries production `chunks` only. On any failure, rollback production changes, delete staging rows for the job, and persist a safe failed job state.
-- [ ] **Step 5: Create SSE streaming without blocking the event loop.** Run the synchronous DB/embedding pipeline in a worker thread; bridge callbacks to the async response with a thread-safe queue. Send a terminal event only after job persistence succeeds. Disable response buffering and send heartbeat comments while waiting.
-- [ ] **Step 6: Add the status endpoint.** Require admin auth and filter by both job ID and `admin_id`; return the same public-safe progress shape as stream events.
-- [ ] **Step 7: Run focused tests and commit.**
+- [x] **Step 1: Write failing tests for progress events, job authorization, terminal states, staging invisibility, and cleanup after embedding/promotion failure.**
+- [x] **Step 2: Run focused tests and verify they fail before the service, store, and streaming route behavior exists.**
+- [x] **Step 3: Implement the ordered stages:** upload, parse, regex_validate, optional normalize, recheck, chunk, embed, stage_vectors, promote, searchable. Use monotonic sequence IDs and update the job with a separate short DB transaction per event.
+- [x] **Step 4: Batch provider embedding calls at 100 inputs or fewer.** Write staged vectors in batches and persist `vectors_written` after each batch; retrieval searches production `chunks` only. Any failure rolls back production changes, deletes staging rows for the job, and records a safe failed job state.
+- [x] **Step 5: Create SSE streaming without blocking the event loop.** Run the synchronous DB/embedding pipeline in a worker thread; bridge callbacks to the async response with a thread-safe queue. Send terminal events after job persistence, disable response buffering, and send heartbeat comments while waiting.
+- [x] **Step 6: Add the status endpoint.** Require admin auth and filter by both job ID and `admin_id`; return the same safe progress snapshot.
+- [x] **Step 7: Run focused tests and commit.** 71 backend tests pass (one disposable-PostgreSQL test skipped); corpus validation passes. Frontend wiring is Task 5.
 
 Run from `backend`: `venv\Scripts\python.exe -m unittest tests.test_ingestion tests.test_corpus_jobs tests.test_corpus_routes tests.test_retrieval -v`.
 

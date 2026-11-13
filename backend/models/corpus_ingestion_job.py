@@ -24,7 +24,7 @@ class CorpusIngestionJob(Base):
         ),
         CheckConstraint(
             "stage IN ('upload', 'parse', 'regex_validate', 'normalize', 'recheck', "
-            "'chunk', 'embed', 'stage_vectors', 'promote', 'searchable')",
+            "'chunk', 'embed', 'stage_vectors', 'promote', 'searchable', 'failed')",
             name="ck_corpus_jobs_stage",
         ),
         Index("ix_corpus_jobs_admin", "admin_id", "created_at"),

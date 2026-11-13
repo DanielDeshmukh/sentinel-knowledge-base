@@ -32,7 +32,7 @@ class Settings(BaseSettings):
     TOP_K: int = 5
 
     # Upload
-    MAX_UPLOAD_SIZE_MB: int = 5
+    MAX_UPLOAD_SIZE_MB: int = 4
 
     class Config:
         env_file = ".env"
