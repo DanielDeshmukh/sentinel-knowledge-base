@@ -1,43 +1,139 @@
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useMemo, useState } from 'react';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import toast from 'react-hot-toast';
-import { getAccessRequests, reviewAccessRequest } from '../services/api';
+import { getUsers, reviewAccessRequest, updateUserRole } from '../services/api';
 import type { User } from '../types';
 import RoleDropdown, { type AssignableRole } from '../components/RoleDropdown';
-import { useState } from 'react';
 
-function AccessRequestRow({ request, onReview, busy }: { request: User; onReview: (id: string, role: AssignableRole) => void; busy: boolean }) {
-  const [role, setRole] = useState<AssignableRole>(request.requested_role ?? 'public');
-  return <article className="access-request-card">
-    <div className="access-request-identity">
-      <span className="access-avatar">{request.display_name.slice(0, 1).toUpperCase()}</span>
-      <div><h2>{request.display_name}</h2><p>{request.email}</p></div>
-      <span className="access-status">PENDING REVIEW</span>
-    </div>
-    <div className="access-request-details">
-      <div><span className="access-detail-label">REQUESTED ROLE</span><strong>{request.requested_role ?? 'Public'}</strong></div>
-      <div><span className="access-detail-label">CURRENT ACCESS</span><strong>{request.role}</strong></div>
-      <RoleDropdown label="Assign final role" value={role} onChange={setRole} />
-    </div>
-    <button className="btn-primary access-approve" disabled={busy} onClick={() => onReview(request.id, role)}>
-      {busy ? 'SAVING…' : `ASSIGN ${role.toUpperCase()} & CLOSE REQUEST`}
-    </button>
-  </article>;
+function AccessUserRow({
+  user,
+  onSave,
+  busy,
+}: {
+  user: User;
+  onSave: (user: User, role: AssignableRole) => void;
+  busy: boolean;
+}) {
+  const assignedRole: AssignableRole = user.role === 'admin' ? 'public' : user.role;
+  const [role, setRole] = useState<AssignableRole>(assignedRole);
+  const hasPendingRequest = user.role_request_status === 'pending';
+  const changed = role !== assignedRole;
+
+  return (
+    <article className={`access-user-row${hasPendingRequest ? ' has-pending-request' : ''}`}>
+      <div className="access-user-identity">
+        <span className="access-avatar" aria-hidden="true">{user.display_name.slice(0, 1).toUpperCase()}</span>
+        <div className="access-user-name">
+          <h2>{user.display_name}</h2>
+          <p>{user.email}</p>
+        </div>
+      </div>
+
+      <div className="access-user-current">
+        <span className="access-detail-label">CURRENT ROLE</span>
+        <strong>{user.role}</strong>
+      </div>
+
+      <div className="access-user-request">
+        <span className="access-detail-label">ROLE REQUEST</span>
+        {hasPendingRequest ? (
+          <strong>{user.requested_role ?? 'Not specified'} <span className="access-status">Needs review</span></strong>
+        ) : user.role_request_status === 'reviewed' ? (
+          <strong>{user.requested_role ?? 'Role request'} <span className="access-reviewed">Reviewed</span></strong>
+        ) : (
+          <span className="access-no-request">No request</span>
+        )}
+      </div>
+
+      <div className="access-user-action">
+        {user.role === 'admin' ? (
+          <span className="access-admin-note">Admin account</span>
+        ) : (
+          <>
+            <RoleDropdown
+              label={hasPendingRequest ? 'Assign final role' : 'Change role'}
+              value={role}
+              onChange={setRole}
+            />
+            <button
+              className="btn-primary access-approve"
+              disabled={busy || (!hasPendingRequest && !changed)}
+              onClick={() => onSave(user, role)}
+            >
+              {busy ? 'SAVING…' : hasPendingRequest ? 'REVIEW REQUEST' : changed ? 'SAVE ROLE' : 'ROLE UP TO DATE'}
+            </button>
+          </>
+        )}
+      </div>
+    </article>
+  );
 }
 
 export default function AccessControl() {
   const client = useQueryClient();
-  const { data: requests = [], isLoading, isError } = useQuery({ queryKey: ['access-requests'], queryFn: getAccessRequests });
+  const { data: users = [], isLoading, isError } = useQuery({ queryKey: ['users'], queryFn: getUsers });
+  const sortedUsers = useMemo(() => [...users].sort((left, right) => {
+    const requestOrder = Number(right.role_request_status === 'pending') - Number(left.role_request_status === 'pending');
+    return requestOrder || left.display_name.localeCompare(right.display_name);
+  }), [users]);
+
   const mutation = useMutation({
-    mutationFn: ({ id, role }: { id: string; role: AssignableRole }) => reviewAccessRequest(id, role),
-    onSuccess: () => { client.invalidateQueries({ queryKey: ['access-requests'] }); client.invalidateQueries({ queryKey: ['users'] }); toast.success('Role assigned and request reviewed'); },
-    onError: () => toast.error('Could not update this access request'),
+    mutationFn: ({ user, role }: { user: User; role: AssignableRole }) =>
+      user.role_request_status === 'pending'
+        ? reviewAccessRequest(user.id, role)
+        : updateUserRole(user.id, { role }),
+    onSuccess: (_updatedUser, variables) => {
+      client.invalidateQueries({ queryKey: ['users'] });
+      client.invalidateQueries({ queryKey: ['access-requests'] });
+      toast.success(variables.user.role_request_status === 'pending' ? 'Request reviewed and role assigned' : 'User role updated');
+    },
+    onError: () => toast.error('Could not update this user’s role'),
   });
-  return <>
-    <div className="inner-page-heading"><div><div className="section-kicker"><span>04</span> / IDENTITY OPERATIONS</div>
-      <h1>Access requests<span className="heading-period">.</span></h1><p>Review each request and assign the access this account should have.</p></div>
-      <span className="badge">ADMIN ONLY</span></div>
-    {isLoading ? <div className="loading">LOADING ACCESS REQUESTS</div> : isError ? <p className="access-empty">Could not load access requests. Please refresh.</p> : requests.length === 0 ?
-      <div className="access-empty"><strong>Queue clear</strong><p>No pending role requests.</p></div> :
-      <div className="access-request-list">{requests.map((request) => <AccessRequestRow key={request.id} request={request} busy={mutation.isPending} onReview={(id, role) => mutation.mutate({ id, role })} />)}</div>}
-  </>;
+
+  const pendingCount = users.filter((user) => user.role_request_status === 'pending').length;
+
+  return (
+    <>
+      <div className="inner-page-heading">
+        <div>
+          <div className="section-kicker"><span>04</span> / IDENTITY OPERATIONS</div>
+          <h1>User access<span className="heading-period">.</span></h1>
+          <p>Review role requests and manage access for every account.</p>
+        </div>
+        <span className="badge">ADMIN ONLY</span>
+      </div>
+
+      <section className="access-directory" aria-label="User access directory">
+        <header className="access-directory-heading">
+          <div>
+            <h2>All users</h2>
+            <p>Pending requests appear first. Role changes take effect immediately.</p>
+          </div>
+          <div className="access-directory-counts" aria-label={`${users.length} users, ${pendingCount} requests to review`}>
+            <span><strong>{users.length}</strong> users</span>
+            <span><strong>{pendingCount}</strong> to review</span>
+          </div>
+        </header>
+
+        {isLoading ? (
+          <div className="loading">LOADING USERS</div>
+        ) : isError ? (
+          <div className="access-empty"><strong>Could not load users</strong><p>Refresh the page to try again.</p></div>
+        ) : users.length === 0 ? (
+          <div className="access-empty"><strong>No user accounts yet</strong><p>New registrations will appear here.</p></div>
+        ) : (
+          <div className="access-user-list">
+            {sortedUsers.map((user) => (
+              <AccessUserRow
+                key={`${user.id}:${user.role}`}
+                user={user}
+                busy={mutation.isPending}
+                onSave={(selectedUser, role) => mutation.mutate({ user: selectedUser, role })}
+              />
+            ))}
+          </div>
+        )}
+      </section>
+    </>
+  );
 }
