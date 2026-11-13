@@ -26,13 +26,15 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     }
   }, []);
 
-  const loadUser = async () => {
+  const loadUser = async (): Promise<User | null> => {
     try {
       const userData = await getMe();
       setUser(userData);
+      return userData;
     } catch {
       localStorage.removeItem('token');
       setUser(null);
+      return null;
     } finally {
       setLoading(false);
     }
@@ -41,13 +43,17 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const login = async (email: string, password: string) => {
     const { login: apiLogin } = await import('../services/api');
     await apiLogin(email, password);
-    await loadUser();
+    if (!(await loadUser())) {
+      throw new Error('Login succeeded, but your user session could not be loaded. Please try again.');
+    }
   };
 
   const register = async (displayName: string, email: string, password: string) => {
     const { register: apiRegister } = await import('../services/api');
     await apiRegister(displayName, email, password);
-    await loadUser();
+    if (!(await loadUser())) {
+      throw new Error('Your account was created, but the user session could not be loaded. Please sign in.');
+    }
   };
 
   const logout = () => {

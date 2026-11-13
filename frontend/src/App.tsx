@@ -21,13 +21,14 @@ const queryClient = new QueryClient({
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const { user, loading } = useAuth();
+  const location = useLocation();
 
   if (loading) {
     return <div className="loading">CONNECTING TO WORKSPACE</div>;
   }
 
   if (!user) {
-    return <Navigate to="/login" replace />;
+    return <Navigate to="/login" replace state={{ from: location }} />;
   }
 
   return <>{children}</>;
@@ -45,6 +46,30 @@ function AdminRoute({ children }: { children: React.ReactNode }) {
   }
 
   return <>{children}</>;
+}
+
+function LoginRoute() {
+  const { user, loading } = useAuth();
+  const location = useLocation();
+
+  if (loading) {
+    return <div className="loading">CONNECTING TO WORKSPACE</div>;
+  }
+
+  if (!user) {
+    return <Login />;
+  }
+
+  const from = (
+    location.state as {
+      from?: { pathname?: string; search?: string; hash?: string };
+    } | null
+  )?.from;
+  const destination = from?.pathname?.startsWith('/') && !from.pathname.startsWith('//')
+    ? `${from.pathname}${from.search ?? ''}${from.hash ?? ''}`
+    : '/chat';
+
+  return <Navigate to={destination === '/login' ? '/chat' : destination} replace />;
 }
 
 function HomeRoute() {
@@ -121,7 +146,7 @@ function AppRoutes() {
   return (
     <Routes>
       <Route path="/" element={<HomeRoute />} />
-      <Route path="/login" element={<Login />} />
+      <Route path="/login" element={<LoginRoute />} />
       <Route
         path="/chat"
         element={

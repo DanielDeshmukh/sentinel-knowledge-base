@@ -34,7 +34,7 @@ const Login: React.FC = () => {
         toast.success('Login successful!');
       }
     } catch (error: any) {
-      toast.error(error.response?.data?.detail || 'Authentication failed');
+      toast.error(error.response?.data?.detail || error.message || 'Authentication failed');
     } finally {
       setLoading(false);
     }
