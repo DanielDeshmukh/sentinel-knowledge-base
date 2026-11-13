@@ -1,23 +1,16 @@
 import argparse
 import json
-import re
 import sys
 from collections import Counter
 from datetime import date
 from pathlib import Path, PurePosixPath
 from typing import Dict, List, Mapping, Optional, Set
 
+from corpus.parser import CorpusMetadata, SYNTHETIC_LABEL, parse_corpus_record
+
 
 CLASSIFICATIONS = ("public", "internal", "restricted")
 DEFAULT_COUNTS = {"public": 11, "internal": 8, "restricted": 6}
-SYNTHETIC_LABEL = "SYNTHETIC: for demonstration only"
-SENSITIVE_PATTERNS = (
-    re.compile(r"\b\d{4}\s?\d{4}\s?\d{4}\b"),
-    re.compile(r"\b[A-Z]{5}[0-9]{4}[A-Z]\b"),
-    re.compile(r"\bAKIA[0-9A-Z]{16}\b"),
-    re.compile(r"\b[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}\b", re.IGNORECASE),
-    re.compile(r"(?<!\d)(?:\+?91[\s.-]?)?[6-9]\d{9}(?!\d)"),
-)
 
 
 def _is_nonempty_string(value: object) -> bool:
@@ -38,24 +31,61 @@ def _safe_relative_path(value: object) -> Optional[PurePosixPath]:
     return relative_path
 
 
-def _has_sensitive_pattern(text: str) -> bool:
-    return any(pattern.search(text) for pattern in SENSITIVE_PATTERNS)
+def _metadata_from_entry(entry: dict) -> CorpusMetadata:
+    raw_urls = entry.get("source_urls")
+    if isinstance(raw_urls, list):
+        source_urls = tuple(value if isinstance(value, str) else "" for value in raw_urls)
+    else:
+        source_urls = ()
+
+    raw_retrieved_at = entry.get("retrieved_at")
+    retrieved_at = None
+    if isinstance(raw_retrieved_at, str):
+        try:
+            candidate_date = date.fromisoformat(raw_retrieved_at)
+            if candidate_date.isoformat() == raw_retrieved_at:
+                retrieved_at = candidate_date
+        except ValueError:
+            pass
+
+    synthetic = entry.get("synthetic")
+    return CorpusMetadata(
+        title=entry.get("title") if isinstance(entry.get("title"), str) else "",
+        classification=entry.get("classification", ""),
+        source_urls=source_urls,
+        retrieved_at=retrieved_at,
+        reuse_basis=entry.get("reuse_basis"),
+        synthetic=synthetic,
+        synthetic_label=SYNTHETIC_LABEL if synthetic is True else entry.get("synthetic_label"),
+    )
 
 
-def _has_first_level_heading(text: str) -> bool:
-    for line in text.splitlines():
-        if line.strip():
-            return line.startswith("# ") and bool(line[2:].strip())
-    return False
-
-
-def _valid_iso_date(value: object) -> bool:
-    if not isinstance(value, str):
-        return False
-    try:
-        return date.fromisoformat(value).isoformat() == value
-    except ValueError:
-        return False
+def _diagnostic_suffix(code: str, classification: object) -> str:
+    suffixes = {
+        "G1_ENCODING": "encoding_invalid",
+        "G3_METADATA": "title_missing",
+        "G3_CLASSIFICATION": "classification_invalid",
+        "G4_CONTROL": "control_characters_detected",
+        "G5_HEADING": "h1_not_first",
+        "G5_CONTENT": "content_missing",
+        "G6_UNSAFE": "unsafe_content_detected",
+        "G8_PUBLIC_SOURCE": "public_source_missing",
+        "G8_PUBLIC_SOURCE_URL": "public_source_invalid",
+        "G8_RETRIEVED_AT": "public_retrieval_date_invalid",
+        "G8_REUSE_BASIS": (
+            "public_reuse_basis_missing"
+            if classification == "public"
+            else "synthetic_reuse_basis_missing"
+        ),
+        "G8_SYNTHETIC_FLAG": "synthetic_flag_invalid",
+        "G8_SYNTHETIC_SOURCES": "synthetic_source_urls_invalid",
+        "G8_SYNTHETIC_RETRIEVED_AT": "synthetic_retrieval_date_invalid",
+        "G9_SYNTHETIC_LABEL": "synthetic_label_missing",
+        "G9_SYNTHETIC_CONTENT_LABEL": "synthetic_label_missing",
+    }
+    if code.startswith("G7_"):
+        return f"sensitive_pattern_{code[3:].lower()}"
+    return suffixes.get(code, f"parser_{code.lower()}")
 
 
 def validate_corpus(
@@ -118,40 +148,11 @@ def validate_corpus(
             diagnostics.append(f"{path_text}:file_unreadable")
             continue
 
-        if not _has_first_level_heading(content):
-            diagnostics.append(f"{path_text}:h1_not_first")
-        if _has_sensitive_pattern(content):
-            diagnostics.append(f"{path_text}:sensitive_pattern_detected")
-
-        if not _is_nonempty_string(entry.get("title")):
-            diagnostics.append(f"{path_text}:title_missing")
-
-        source_urls = entry.get("source_urls")
-        reuse_basis = entry.get("reuse_basis")
-        synthetic = entry.get("synthetic")
-
-        if classification == "public":
-            if not isinstance(source_urls, list) or not any(
-                _is_nonempty_string(url) for url in source_urls
-            ):
-                diagnostics.append(f"{path_text}:public_source_missing")
-            if not _valid_iso_date(entry.get("retrieved_at")):
-                diagnostics.append(f"{path_text}:public_retrieval_date_invalid")
-            if not _is_nonempty_string(reuse_basis):
-                diagnostics.append(f"{path_text}:public_reuse_basis_missing")
-            if synthetic is not False:
-                diagnostics.append(f"{path_text}:synthetic_flag_invalid")
-        elif classification in ("internal", "restricted"):
-            if synthetic is not True:
-                diagnostics.append(f"{path_text}:synthetic_flag_invalid")
-            if SYNTHETIC_LABEL not in content:
-                diagnostics.append(f"{path_text}:synthetic_label_missing")
-            if source_urls != []:
-                diagnostics.append(f"{path_text}:synthetic_source_urls_invalid")
-            if entry.get("retrieved_at") is not None:
-                diagnostics.append(f"{path_text}:synthetic_retrieval_date_invalid")
-            if not _is_nonempty_string(reuse_basis):
-                diagnostics.append(f"{path_text}:synthetic_reuse_basis_missing")
+        metadata = _metadata_from_entry(entry)
+        parsed = parse_corpus_record(content, metadata, normalize_on_failure=False)
+        for issue in parsed.final_diagnostics:
+            suffix = _diagnostic_suffix(issue.code, classification)
+            diagnostics.append(f"{path_text}:{suffix}")
 
     actual_paths = {
         path.relative_to(root).as_posix()

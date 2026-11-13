@@ -134,6 +134,20 @@ class CorpusValidatorTests(unittest.TestCase):
             )
             self.assertNotIn(sensitive_value, "\n".join(issues))
 
+    def test_checked_in_validator_reports_the_shared_parser_rule(self):
+        path = self.root / "public/summary.md"
+        path.write_text(
+            "# Public summary\n\nreviewer@example.org\n",
+            encoding="utf-8",
+        )
+
+        issues = validate_corpus(
+            self.root,
+            {"public": 1, "internal": 1, "restricted": 1},
+        )
+
+        self.assertIn("public/summary.md:sensitive_pattern_email", issues)
+
     def test_rejects_duplicate_and_unlisted_manifest_paths(self):
         self.entries.append(dict(self.entries[0]))
         orphan = self.root / "public/orphan.md"

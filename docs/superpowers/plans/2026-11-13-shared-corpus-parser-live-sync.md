@@ -42,7 +42,7 @@
 - `frontend/src/services/api.ts`: authenticated upload stream reader and job snapshot fetch.
 - `frontend/src/components/admin/IngestionPanel.tsx`: metadata form, parser feedback, and live per-stage/vector counts.
 - `frontend/src/pages/Documents.tsx`: refresh role-visible document records after the searchable event.
-- Tests live in `backend/tests/test_corpus_parser.py`, `test_corpus.py`, `test_ingestion.py`, `test_corpus_jobs.py`, `test_corpus_routes.py`, and `test_retrieval.py`.
+- Tests live in `backend/tests/test_corpus_parser.py`, `test_corpus.py`, `test_gates.py`, `test_ingestion.py`, `test_corpus_jobs.py`, `test_corpus_routes.py`, and `test_retrieval.py`.
 
 ## Shared public Python types
 
@@ -123,15 +123,15 @@ Commit: `feat: add shared corpus record parser`.
 - Modify `backend/services/gates.py`.
 - Modify `backend/services/ingestion.py`.
 - Modify `backend/tests/test_corpus.py`.
-- Create/update `backend/tests/test_ingestion.py`.
+- Create `backend/tests/test_gates.py`.
 
 **Interfaces:** `validate_corpus(root, expected_counts=None)` remains the CLI/test entry point. `run_gates(text, metadata)` remains available as a compatibility wrapper but obtains its regex results from `parse_corpus_record`.
 
-- [ ] **Step 1: Add parity tests first.** For equivalent Markdown and metadata, assert runtime parsing and manifest validation return the same rule codes and normalized content. Assert manifest-only checks (safe relative paths, all Markdown files listed exactly once, exact 11/8/6 classification counts) still run and ignore runtime database records.
-- [ ] **Step 2: Run `venv\Scripts\python.exe -m unittest tests.test_corpus tests.test_corpus_parser tests.test_ingestion -v` from `backend` and observe parity failures.**
-- [ ] **Step 3: Refactor `validate.py` to call `parse_corpus_record` for each manifest file.** Keep JSON shape, path traversal protection, synthetic/public provenance rules, and count diagnostics in the manifest validator.
-- [ ] **Step 4: Refactor `run_gates` and `process_ingestion` to call the same parser.** Remove duplicated regex definitions. Preserve the current stage API until the streaming task changes it. Test Markdown, PDF/DOCX extracted text, direct pass, normalize/recheck pass, and persistent failure.
-- [ ] **Step 5: Run the corpus validator and focused tests.**
+- [x] **Step 1: Add parity tests first.** For equivalent Markdown and metadata, assert runtime gates and direct shared-parser calls return the same diagnostic codes/output; the manifest validator maps shared rule codes to its stable path-prefixed CLI diagnostics. Manifest-only checks (safe relative paths, all Markdown files listed exactly once, exact 11/8/6 classification counts) remain separate and runtime records do not enter manifest counts.
+- [x] **Step 2: Run focused tests and observe parity failures before refactoring.** The new shared-rule assertions failed against the old validator/gates as expected.
+- [x] **Step 3: Refactor `validate.py` to call `parse_corpus_record` for each manifest file.** Keep JSON shape, path traversal protection, synthetic/public provenance rules, and count diagnostics in the manifest validator.
+- [x] **Step 4: Refactor `run_gates` and `normalize_text` to call the same parser.** Remove duplicated regex definitions. Preserve the current stage API until the streaming task changes it. The existing ingestion service continues through these compatibility wrappers.
+- [x] **Step 5: Run the corpus validator and focused tests.** 28 focused tests pass; `python -m corpus.validate` exits successfully for all checked-in records.
 
 Run from `backend`: `venv\Scripts\python.exe -m unittest tests.test_corpus tests.test_corpus_parser tests.test_ingestion -v`; then `venv\Scripts\python.exe -m corpus.validate`.
 
@@ -153,14 +153,14 @@ Commit: `refactor: share corpus parser across validator and ingestion`.
 
 **Interfaces:** `Document` gains the design's provenance/content/parser/vector/sync fields. `CorpusIngestionJob` has `id`, `document_id`, `admin_id`, `filename`, `status`, `stage`, `sequence`, `progress`, `diagnostics`, `error_code`, and lifecycle timestamps. Add `CorpusJobStatusResponse` with only those safe fields.
 
-- [ ] **Step 1: Write failing model and migration tests.** Verify new fields persist/serialize, job sequence increases, diagnostics do not accept matched text, an existing `documents` table is upgraded idempotently, and legacy documents with null metadata remain readable.
-- [ ] **Step 2: Run focused tests and observe failures before model/migration implementation.**
+- [x] **Step 1: Write failing model and migration tests.** Verify the full document/job field shapes, safe progress response serialization, and idempotent additive DDL for existing documents and staging vectors.
+- [x] **Step 2: Run focused tests and observe failures before model/migration implementation.** Initial run failed because the migration function and corpus job model did not exist.
 
 Run from `backend`: `venv\Scripts\python.exe -m unittest tests.test_corpus_jobs tests.test_corpus_schema_upgrade -v`.
 
-- [ ] **Step 3: Add nullable columns and a job table.** Add checks for supported classification/sync status where compatible with existing data. Add a partial unique index on normalized content hash plus classification for rows with a non-null hash; preserve repeated ingestion idempotency without forcing updates to legacy rows.
-- [ ] **Step 4: Extend `upgrade_corpus_schema(connection)` and call it after `Base.metadata.create_all`.** Use `ADD COLUMN IF NOT EXISTS` / `CREATE TABLE IF NOT EXISTS` and an advisory lock or migration marker; never expose partial migration state.
-- [ ] **Step 5: Run focused tests and commit.**
+- [x] **Step 3: Add nullable columns and a job table.** Add the safe corpus metadata fields, legacy-compatible defaults, sync-state/origin checks, job status/stage checks, progress JSON, and indexes. Content hash remains indexed but not unique until the upload idempotency transaction is implemented in Task 4.
+- [x] **Step 4: Extend `upgrade_corpus_schema(connection)` and call it after `Base.metadata.create_all`.** Use `ADD COLUMN IF NOT EXISTS` / `CREATE TABLE IF NOT EXISTS`, an advisory transaction lock, and duplicate-safe constraint creation; no destructive schema operations.
+- [x] **Step 5: Run focused tests and prepare commit.** Full suite and frontend build are run before task commit.
 
 Expected: fresh and pre-existing PostgreSQL schemas can run initialization twice; the second run performs no destructive changes.
 
