@@ -1775,6 +1775,48 @@ input:focus, textarea:focus, select:focus {
   margin-top: 24px;
 }
 
+.corpus-field {
+  display: block;
+  margin-bottom: 18px;
+  color: #858585;
+  font: 500 9px 'IBM Plex Mono', monospace;
+  letter-spacing: .06em;
+}
+
+.corpus-field span {
+  color: #666;
+  letter-spacing: 0;
+}
+
+.corpus-field input,
+.corpus-field textarea,
+.corpus-field select {
+  display: block;
+  width: 100%;
+  margin-top: 6px;
+  color: #dedede;
+  font: 400 12px 'IBM Plex Mono', monospace;
+  letter-spacing: 0;
+}
+
+.corpus-field textarea {
+  resize: vertical;
+}
+
+.corpus-checkbox {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0 0 18px;
+  color: #a5a5a5;
+  font: 400 11px 'IBM Plex Mono', monospace;
+}
+
+.corpus-checkbox input {
+  width: auto;
+  margin: 0;
+}
+
 .ingestion-form {
   min-height: 400px;
 }

@@ -5,9 +5,12 @@ import type {
   Document,
   ChatRequest,
   ChatResponse,
-  IngestionResponse,
+  CorpusJobSnapshot,
+  CorpusMetadata,
+  CorpusProgressEvent,
   RoleUpdate,
 } from '../types';
+import { decodeSseFrame } from './sse';
 
 const api = axios.create({
   baseURL: '/api',
@@ -77,18 +80,85 @@ export const deleteDocument = async (id: string) => {
   return response.data;
 };
 
+export class CorpusIngestionStreamError extends Error {
+  constructor(message: string, public readonly jobId?: string) {
+    super(message);
+    this.name = 'CorpusIngestionStreamError';
+  }
+}
+
 // Ingestion
-export const ingestFile = async (file: File, title: string, classification: string) => {
+export const ingestFile = async (
+  file: File,
+  metadata: CorpusMetadata,
+  onEvent: (event: CorpusProgressEvent) => void,
+  signal?: AbortSignal,
+): Promise<CorpusProgressEvent> => {
   const formData = new FormData();
   formData.append('file', file);
-  formData.append('title', title);
-  formData.append('classification', classification);
+  formData.append('title', metadata.title);
+  formData.append('classification', metadata.classification);
+  formData.append('source_urls', JSON.stringify(metadata.sourceUrls));
+  formData.append('retrieved_at', metadata.retrievedAt);
+  formData.append('reuse_basis', metadata.reuseBasis);
+  formData.append('synthetic', String(metadata.synthetic));
+  formData.append('synthetic_label', metadata.syntheticLabel);
 
-  const response = await api.post<IngestionResponse>('/ingest', formData, {
-    headers: {
-      'Content-Type': 'multipart/form-data',
-    },
+  const token = localStorage.getItem('token');
+  const response = await fetch('/api/ingest', {
+    method: 'POST',
+    headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+    body: formData,
+    signal,
   });
+  const jobId = response.headers.get('X-Corpus-Job-ID') || undefined;
+  if (!response.ok) {
+    let detail = `Ingestion request failed (${response.status})`;
+    try {
+      const body = await response.json() as { detail?: string };
+      if (body.detail) detail = body.detail;
+    } catch { /* Keep the safe status-only message. */ }
+    throw new CorpusIngestionStreamError(detail, jobId);
+  }
+  if (!response.body) throw new CorpusIngestionStreamError('Streaming is unavailable in this browser', jobId);
+
+  const reader = response.body.getReader();
+  const decoder = new TextDecoder();
+  let buffer = '';
+  let lastSequence = 0;
+  let terminal: CorpusProgressEvent | null = null;
+  try {
+    while (true) {
+      const { value, done } = await reader.read();
+      buffer += decoder.decode(value, { stream: !done }).replace(/\r\n/g, '\n');
+      let boundary = buffer.indexOf('\n\n');
+      while (boundary >= 0) {
+        const frame = buffer.slice(0, boundary);
+        buffer = buffer.slice(boundary + 2);
+        const data = decodeSseFrame(frame);
+        if (data) {
+          const event = JSON.parse(data) as CorpusProgressEvent;
+          if (Number.isFinite(event.sequence) && event.sequence > lastSequence) {
+            lastSequence = event.sequence;
+            onEvent(event);
+            if (event.terminal) terminal = event;
+          }
+        }
+        boundary = buffer.indexOf('\n\n');
+      }
+      if (done) break;
+    }
+  } catch (error) {
+    if (error instanceof CorpusIngestionStreamError) throw error;
+    if (error instanceof DOMException && error.name === 'AbortError') throw error;
+    throw new CorpusIngestionStreamError('Progress stream interrupted', jobId);
+  }
+  if (terminal) return terminal;
+  throw new CorpusIngestionStreamError('Progress stream ended before ingestion completed', jobId);
+};
+
+export const getCorpusJob = async (jobId: string) => {
+  const response = await api.get<CorpusJobSnapshot>(`/admin/corpus/jobs/${jobId}`);
   return response.data;
 };
 

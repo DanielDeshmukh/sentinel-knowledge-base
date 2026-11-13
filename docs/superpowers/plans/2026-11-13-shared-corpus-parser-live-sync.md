@@ -195,10 +195,10 @@ The existing admin-only upload endpoint becomes a streamed response with `text/e
 - [x] **Step 1: Write failing tests for progress events, job authorization, terminal states, staging invisibility, and cleanup after embedding/promotion failure.**
 - [x] **Step 2: Run focused tests and verify they fail before the service, store, and streaming route behavior exists.**
 - [x] **Step 3: Implement the ordered stages:** upload, parse, regex_validate, optional normalize, recheck, chunk, embed, stage_vectors, promote, searchable. Use monotonic sequence IDs and update the job with a separate short DB transaction per event.
-- [x] **Step 4: Batch provider embedding calls at 100 inputs or fewer.** Write staged vectors in batches and persist `vectors_written` after each batch; retrieval searches production `chunks` only. Any failure rolls back production changes, deletes staging rows for the job, and records a safe failed job state.
-- [x] **Step 5: Create SSE streaming without blocking the event loop.** Run the synchronous DB/embedding pipeline in a worker thread; bridge callbacks to the async response with a thread-safe queue. Send terminal events after job persistence, disable response buffering, and send heartbeat comments while waiting.
+- [x] **Step 4: Batch provider embedding calls at 100 inputs or fewer.** Write staged vectors in batches and persist `vectors_written` after each batch; retrieval searches production `chunks` only and now also requires `documents.sync_state = 'searchable'`. Pre-commit failures delete staging and record a safe failed job state; a progress-store failure after promotion cannot mark already committed production chunks failed.
+- [x] **Step 5: Create SSE streaming without blocking the event loop.** Run the synchronous DB/embedding pipeline in a worker thread; bridge callbacks to the async response with a thread-safe queue. Send terminal events after job persistence, disable response buffering, and send heartbeat comments while waiting. A separate DB lease heartbeat covers long blocking stages; startup and status reads reconcile stale jobs, and document/job IDs commit together before processing can be interrupted.
 - [x] **Step 6: Add the status endpoint.** Require admin auth and filter by both job ID and `admin_id`; return the same safe progress snapshot.
-- [x] **Step 7: Run focused tests and commit.** 71 backend tests pass (one disposable-PostgreSQL test skipped); corpus validation passes. Frontend wiring is Task 5.
+- [x] **Step 7: Run focused tests and commit.** Initial Task 4 baseline passed 71 backend tests (one disposable-PostgreSQL test skipped); regression tests for detail authorization and post-promotion progress-store failure were added afterward. Frontend wiring is Task 5.
 
 Run from `backend`: `venv\Scripts\python.exe -m unittest tests.test_ingestion tests.test_corpus_jobs tests.test_corpus_routes tests.test_retrieval -v`.
 
@@ -217,12 +217,12 @@ Commit: `feat: stream corpus validation and vector sync progress`.
 
 **Interfaces:** `ingestFile(file, metadata, onEvent, signal?)` submits `FormData`, parses SSE chunks, passes typed `CorpusProgressEvent` values to the callback, and returns the terminal event. `getCorpusJob(jobId)` loads a persisted job snapshot after reconnect/reload.
 
-- [ ] **Step 1: Add the TypeScript event/parser tests only if an existing frontend test runner is present; otherwise isolate the SSE decoder in a pure function and verify it with a temporary development fixture plus `npm.cmd run build --prefix frontend`.**
-- [ ] **Step 2: Update frontend types before implementation.** Define the same stage/status literals as the API, diagnostics `{ code, severity, message, line }`, and progress counts; do not define regex patterns in TypeScript.
-- [ ] **Step 3: Implement authenticated multipart streaming with `fetch`.** Use `ReadableStream` decoding for blank-line-delimited SSE frames, tolerate chunk boundaries and heartbeat comments, ignore events whose `sequence` is not newer, and surface non-2xx JSON errors without dumping response bodies to console.
-- [ ] **Step 4: Update the admin form.** Collect title, classification, source URLs, retrieved date, reuse basis, and synthetic marker. Enforce the 4 MB/type allow-list as client feedback only; display server diagnostics as authoritative.
-- [ ] **Step 5: Render live pipeline state.** Show regex pass/fail messages, normalization, embedded/total, vectors-written/total, promotion, and the exact searchable event/time. On stream loss, recover from `getCorpusJob`; on success, invalidate/refetch documents.
-- [ ] **Step 6: Build and commit.**
+- [x] **Step 1: Add the TypeScript event/parser tests only if an existing frontend test runner is present; otherwise isolate the SSE decoder in a pure function and verify it with a temporary development fixture plus `npm.cmd run build --prefix frontend`.** No frontend test runner is configured; the pure decoder fixture covers heartbeat, multiline data, and basic frames.
+- [x] **Step 2: Update frontend types before implementation.** Define the same stage/status literals as the API, diagnostics `{ code, severity, message, line }`, and progress counts; do not define regex patterns in TypeScript.
+- [x] **Step 3: Implement authenticated multipart streaming with `fetch`.** Use `ReadableStream` decoding for blank-line-delimited SSE frames, tolerate chunk boundaries and heartbeat comments, ignore events whose `sequence` is not newer, and surface non-2xx JSON errors without dumping response bodies to console. Persist the active job ID and poll its admin status snapshot after reload or stream loss.
+- [x] **Step 4: Update the admin form.** Collect title, classification, source URLs, retrieved date, reuse basis, and synthetic marker. Keep public provenance fields separate from synthetic record requirements. Enforce the 4 MB/type allow-list as client feedback only; display server diagnostics as authoritative.
+- [x] **Step 5: Render live pipeline state.** Show regex pass/fail messages, normalization, embedded/total, vectors-written/total, promotion, and the exact searchable event/time. On stream loss, recover from `getCorpusJob`; on success, invalidate/refetch documents.
+- [x] **Step 6: Build and commit.** Frontend TypeScript and Vite production build pass; existing mixed static/dynamic API import and 500 kB chunk warnings remain.
 
 Run from repository root: `npm.cmd run build --prefix frontend`.
 
