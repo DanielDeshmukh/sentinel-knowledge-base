@@ -148,7 +148,15 @@ function IngestionPanel() {
       return;
     }
     if (!reuseBasis.trim() || (!synthetic && !sourceUrls.trim())) {
-      toast.error('Add the source URL and reuse basis required for this record');
+      if (synthetic) {
+        toast.error('Add a reuse basis describing the original synthetic work. Source URLs are not needed.');
+      } else {
+        const missingFields = [
+          !sourceUrls.trim() ? 'at least one source URL' : '',
+          !reuseBasis.trim() ? 'a reuse basis' : '',
+        ].filter(Boolean);
+        toast.error(`Add ${missingFields.join(' and ')} to continue.`);
+      }
       return;
     }
     if ((classification === 'public' && synthetic) || (classification !== 'public' && !synthetic)) {
@@ -243,7 +251,8 @@ function IngestionPanel() {
             <input type="date" value={retrievedAt} onChange={(event) => setRetrievedAt(event.currentTarget.value)} />
           </label>}
           <label className="corpus-field corpus-field-wide">REUSE BASIS
-            <textarea rows={3} value={reuseBasis} onChange={(event) => setReuseBasis(event.currentTarget.value)} placeholder="Describe the source's license or the original work performed" />
+            <textarea rows={3} value={reuseBasis} onChange={(event) => setReuseBasis(event.currentTarget.value)} placeholder={synthetic ? 'Describe the original synthetic work performed' : "Describe the source's license or the original work performed"} />
+            <span className="corpus-field-help">Required for every record. Synthetic records do not need source URLs or a retrieved date.</span>
           </label>
           <label className="corpus-checkbox">
             <input type="checkbox" checked={synthetic} onChange={(event) => {
