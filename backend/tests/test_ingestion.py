@@ -54,10 +54,11 @@ class FakeSession:
         self.documents = []
         self.staging_chunks = []
         self.chunks = []
+        self.operations = []
         self.commits = 0
         self.rollbacks = 0
         self.fail_on_commit = None
-        self.job = type("FakeJob", (), {"id": "job-1", "document_id": None})()
+        self.job = FakeJob(self.operations)
         self.existing_document = None
         self.statements = []
 
@@ -68,13 +69,15 @@ class FakeSession:
             self.staging_chunks.append(value)
         else:
             self.documents.append(value)
+            if isinstance(value, Document):
+                self.operations.append("add_document")
 
     def add_all(self, values):
         for value in values:
             self.add(value)
 
     def flush(self):
-        pass
+        self.operations.append("flush")
 
     def commit(self):
         self.commits += 1
@@ -90,6 +93,22 @@ class FakeSession:
 
     def execute(self, statement, parameters=None):
         self.statements.append((str(statement), parameters or {}))
+
+
+class FakeJob:
+    def __init__(self, operations):
+        self.id = "job-1"
+        self._document_id = None
+        self.operations = operations
+
+    @property
+    def document_id(self):
+        return self._document_id
+
+    @document_id.setter
+    def document_id(self, value):
+        self.operations.append("link_job_document")
+        self._document_id = value
 
 
 class CorpusIngestionTests(unittest.TestCase):
@@ -139,6 +158,10 @@ class CorpusIngestionTests(unittest.TestCase):
         self.assertEqual(db.staging_chunks, [])
         self.assertEqual(db.documents[0].sync_state, "searchable")
         self.assertEqual(db.job.document_id, db.documents[0].id)
+        insert_index = db.operations.index("add_document")
+        flush_index = db.operations.index("flush", insert_index + 1)
+        link_index = db.operations.index("link_job_document", insert_index)
+        self.assertLess(flush_index, link_index)
         self.assertEqual(db.documents[0].origin, "admin_upload")
         self.assertEqual(db.chunks[0].allowed_roles, ["public", "internal", "restricted", "admin"])
         stage_events = [event for event in events if event["stage"] == "stage_vectors"]

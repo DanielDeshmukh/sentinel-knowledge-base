@@ -276,6 +276,9 @@ def process_ingestion(
         else:
             document = Document(id=str(uuid.uuid4()), **document_values)
             db.add(document)
+            # Flush the new document before linking the existing job row to it.
+            # PostgreSQL enforces the job's document_id foreign key immediately.
+            db.flush()
         job.document_id = document.id
         db.commit()
         emit(
