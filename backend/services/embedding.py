@@ -1,12 +1,15 @@
 import hashlib
+import logging
 import math
 import re
+import time
 from typing import List, Tuple
 
 import httpx
 
 from core.config import settings
 
+logger = logging.getLogger(__name__)
 
 EMBEDDING_VERSION = (
     f"{settings.NVIDIA_EMBEDDING_MODEL}:{settings.EMBEDDING_DIMENSION}:v1"
@@ -18,7 +21,10 @@ class EmbeddingServiceUnavailable(RuntimeError):
 
 
 class EmbeddingService:
-    MAX_BATCH_SIZE = 100
+    # Keep provider requests small: transient NIM failures have been observed
+    # on multi-chunk ingestion requests, and smaller batches limit their scope.
+    MAX_BATCH_SIZE = 5
+    MAX_RETRIES = 2
 
     def embed(self, text: str) -> List[float]:
         return self._embed_batch([text], "query")[0]
@@ -39,34 +45,76 @@ class EmbeddingService:
                 "NVIDIA_API_KEY must be configured to use the embedding service."
             )
 
-        try:
-            response = httpx.post(
-                settings.NVIDIA_EMBEDDING_API_URL,
-                headers={
-                    "Authorization": f"Bearer {settings.NVIDIA_API_KEY}",
-                    "Content-Type": "application/json",
-                },
-                json={
-                    "input": texts,
-                    "model": settings.NVIDIA_EMBEDDING_MODEL,
-                    "input_type": input_type,
-                    "dimensions": settings.EMBEDDING_DIMENSION,
-                    "encoding_format": "float",
-                    "truncate": "END",
-                },
-                timeout=60.0,
-            )
-            response.raise_for_status()
-            response_data = response.json()["data"]
-            ordered = sorted(response_data, key=lambda item: item["index"])
-            embeddings = [
-                [float(value) for value in item["embedding"]]
-                for item in ordered
-            ]
-        except (httpx.HTTPError, KeyError, TypeError, ValueError) as error:
-            raise EmbeddingServiceUnavailable(
-                "NVIDIA embedding request failed or returned an invalid response."
-            ) from error
+        response = None
+        for attempt in range(self.MAX_RETRIES + 1):
+            try:
+                response = httpx.post(
+                    settings.NVIDIA_EMBEDDING_API_URL,
+                    headers={
+                        "Authorization": f"Bearer {settings.NVIDIA_API_KEY}",
+                        "Content-Type": "application/json",
+                    },
+                    json={
+                        "input": texts,
+                        "model": settings.NVIDIA_EMBEDDING_MODEL,
+                        "input_type": input_type,
+                        "dimensions": settings.EMBEDDING_DIMENSION,
+                        "encoding_format": "float",
+                        "truncate": "END",
+                    },
+                    timeout=60.0,
+                )
+                response.raise_for_status()
+                response_data = response.json()["data"]
+                ordered = sorted(response_data, key=lambda item: item["index"])
+                embeddings = [
+                    [float(value) for value in item["embedding"]]
+                    for item in ordered
+                ]
+                break
+            except httpx.HTTPStatusError as error:
+                response = error.response
+                request_id = (
+                    response.headers.get("request-id")
+                    or response.headers.get("x-request-id")
+                    or response.headers.get("nvcf-reqid")
+                    or "unavailable"
+                )
+                logger.warning(
+                    "NVIDIA embedding provider returned HTTP %s (request_id=%s, "
+                    "batch_size=%s, attempt=%s/%s).",
+                    response.status_code,
+                    request_id,
+                    len(texts),
+                    attempt + 1,
+                    self.MAX_RETRIES + 1,
+                )
+                retryable = response.status_code == 429 or response.status_code >= 500
+                if not retryable or attempt == self.MAX_RETRIES:
+                    raise EmbeddingServiceUnavailable(
+                        f"NVIDIA embedding provider returned HTTP {response.status_code}. "
+                        f"Request ID: {request_id}."
+                    ) from error
+            except httpx.RequestError as error:
+                logger.warning(
+                    "NVIDIA embedding transport error (batch_size=%s, attempt=%s/%s, "
+                    "error_type=%s).",
+                    len(texts),
+                    attempt + 1,
+                    self.MAX_RETRIES + 1,
+                    type(error).__name__,
+                )
+                if attempt == self.MAX_RETRIES:
+                    raise EmbeddingServiceUnavailable(
+                        "NVIDIA embedding provider could not be reached after retries."
+                    ) from error
+            except (KeyError, TypeError, ValueError) as error:
+                logger.exception("NVIDIA embedding provider returned an invalid response.")
+                raise EmbeddingServiceUnavailable(
+                    "NVIDIA embedding request returned an invalid response."
+                ) from error
+
+            time.sleep(0.5 * (2 ** attempt))
 
         if len(embeddings) != len(texts) or any(
             len(vector) != settings.EMBEDDING_DIMENSION
