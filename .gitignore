@@ -45,3 +45,4 @@ Thumbs.db
 # Database
 *.db
 *.sqlite
+.neon
