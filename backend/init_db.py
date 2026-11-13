@@ -9,6 +9,7 @@ from core.database import engine, Base
 from models.user import User
 from models.document import Document
 from models.chunk import Chunk, StagingChunk
+from models.corpus_ingestion_job import CorpusIngestionJob
 from sqlalchemy import text
 from sqlalchemy.engine import Connection
 from core.config import settings
@@ -32,6 +33,101 @@ def upgrade_user_schema(connection: Connection) -> None:
     """))
     connection.execute(text(
         "ALTER TABLE users ALTER COLUMN display_name SET NOT NULL"
+    ))
+
+
+def upgrade_corpus_schema(connection: Connection) -> None:
+    """Add corpus record and persisted ingestion progress fields without destructive changes."""
+    connection.execute(text("SELECT pg_advisory_xact_lock(20261113, 2)"))
+
+    document_columns = (
+        ("schema_version", "INTEGER NOT NULL DEFAULT 1"),
+        ("origin", "VARCHAR NOT NULL DEFAULT 'admin_upload'"),
+        ("manifest_path", "VARCHAR"),
+        ("markdown_content", "TEXT"),
+        ("content_sha256", "VARCHAR(64)"),
+        ("content_bytes", "INTEGER"),
+        ("media_type", "VARCHAR"),
+        ("source_urls", "JSON NOT NULL DEFAULT '[]'::json"),
+        ("retrieved_at", "DATE"),
+        ("reuse_basis", "TEXT"),
+        ("synthetic", "BOOLEAN NOT NULL DEFAULT FALSE"),
+        ("synthetic_label", "VARCHAR"),
+        ("parser_version", "VARCHAR"),
+        ("ruleset_version", "VARCHAR"),
+        ("embedding_version", "VARCHAR"),
+        ("embedding_dimension", "INTEGER"),
+        ("sync_state", "VARCHAR NOT NULL DEFAULT 'searchable'"),
+        ("chunk_count", "INTEGER NOT NULL DEFAULT 0"),
+        ("vectors_written", "INTEGER NOT NULL DEFAULT 0"),
+        ("searchable_at", "TIMESTAMP"),
+        ("updated_at", "TIMESTAMP NOT NULL DEFAULT NOW()"),
+    )
+    for column_name, column_type in document_columns:
+        connection.execute(text(
+            f"ALTER TABLE documents ADD COLUMN IF NOT EXISTS {column_name} {column_type}"
+        ))
+    connection.execute(text(
+        "CREATE INDEX IF NOT EXISTS ix_documents_content_sha256 "
+        "ON documents (content_sha256)"
+    ))
+    connection.execute(text("""
+        DO $$ BEGIN
+            ALTER TABLE documents ADD CONSTRAINT ck_documents_sync_state CHECK (
+                sync_state IN ('pending', 'validating', 'embedding', 'staging',
+                               'promoting', 'searchable', 'failed')
+            ) NOT VALID;
+        EXCEPTION WHEN duplicate_object THEN NULL;
+        END $$
+    """))
+    connection.execute(text("""
+        DO $$ BEGIN
+            ALTER TABLE documents ADD CONSTRAINT ck_documents_origin CHECK (
+                origin IN ('checked_in', 'admin_upload', 'legacy')
+            ) NOT VALID;
+        EXCEPTION WHEN duplicate_object THEN NULL;
+        END $$
+    """))
+
+    connection.execute(text("""
+        CREATE TABLE IF NOT EXISTS corpus_ingestion_jobs (
+            id VARCHAR PRIMARY KEY,
+            document_id VARCHAR REFERENCES documents(id) ON DELETE SET NULL,
+            admin_id VARCHAR NOT NULL REFERENCES users(id),
+            filename VARCHAR NOT NULL,
+            status VARCHAR NOT NULL DEFAULT 'running'
+                CHECK (status IN ('running', 'succeeded', 'failed')),
+            stage VARCHAR NOT NULL DEFAULT 'upload',
+            sequence INTEGER NOT NULL DEFAULT 0,
+            progress JSON NOT NULL DEFAULT '{}'::json,
+            diagnostics JSON NOT NULL DEFAULT '[]'::json,
+            error_code VARCHAR,
+            created_at TIMESTAMP NOT NULL DEFAULT NOW(),
+            started_at TIMESTAMP NOT NULL DEFAULT NOW(),
+            finished_at TIMESTAMP,
+            updated_at TIMESTAMP NOT NULL DEFAULT NOW()
+        )
+    """))
+    connection.execute(text(
+        "CREATE INDEX IF NOT EXISTS ix_corpus_jobs_admin "
+        "ON corpus_ingestion_jobs (admin_id, created_at)"
+    ))
+    connection.execute(text(
+        "CREATE INDEX IF NOT EXISTS ix_corpus_jobs_document "
+        "ON corpus_ingestion_jobs (document_id)"
+    ))
+
+    connection.execute(text(
+        "ALTER TABLE staging_chunks ADD COLUMN IF NOT EXISTS job_id VARCHAR"
+    ))
+    connection.execute(text(
+        "ALTER TABLE staging_chunks ADD COLUMN IF NOT EXISTS embedding_version VARCHAR"
+    ))
+    connection.execute(text(
+        "ALTER TABLE chunks ADD COLUMN IF NOT EXISTS embedding_version VARCHAR"
+    ))
+    connection.execute(text(
+        "CREATE INDEX IF NOT EXISTS ix_staging_chunks_job_id ON staging_chunks (job_id)"
     ))
 
 
@@ -113,6 +209,7 @@ def init_db():
 
     with engine.begin() as connection:
         upgrade_user_schema(connection)
+        upgrade_corpus_schema(connection)
         upgrade_embedding_schema(connection)
     print("[OK] pgvector extension enabled")
 

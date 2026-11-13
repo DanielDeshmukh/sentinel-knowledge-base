@@ -17,6 +17,7 @@ class Chunk(Base):
     allowed_roles = Column(ARRAY(String), nullable=False)
     heading_path = Column(String, nullable=True)
     content_hash = Column(String, nullable=False)
+    embedding_version = Column(String, nullable=True)
 
     document = relationship("Document", back_populates="chunks")
 
@@ -31,3 +32,5 @@ class StagingChunk(Base):
     allowed_roles = Column(ARRAY(String), nullable=False)
     heading_path = Column(String, nullable=True)
     content_hash = Column(String, nullable=False)
+    embedding_version = Column(String, nullable=True)
+    job_id = Column(String, nullable=True, index=True)

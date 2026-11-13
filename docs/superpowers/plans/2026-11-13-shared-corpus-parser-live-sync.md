@@ -160,7 +160,7 @@ Run from `backend`: `venv\Scripts\python.exe -m unittest tests.test_corpus_jobs 
 
 - [x] **Step 3: Add nullable columns and a job table.** Add the safe corpus metadata fields, legacy-compatible defaults, sync-state/origin checks, job status/stage checks, progress JSON, and indexes. Content hash remains indexed but not unique until the upload idempotency transaction is implemented in Task 4.
 - [x] **Step 4: Extend `upgrade_corpus_schema(connection)` and call it after `Base.metadata.create_all`.** Use `ADD COLUMN IF NOT EXISTS` / `CREATE TABLE IF NOT EXISTS`, an advisory transaction lock, and duplicate-safe constraint creation; no destructive schema operations.
-- [x] **Step 5: Run focused tests and prepare commit.** Full suite and frontend build are run before task commit.
+- [x] **Step 5: Run focused tests and commit.** Full suite passes (57 tests; one test requiring disposable PostgreSQL skipped). Frontend production build passes from the primary checkout because the isolated worktree has no local Node dependencies and Task 3 does not modify frontend files.
 
 Expected: fresh and pre-existing PostgreSQL schemas can run initialization twice; the second run performs no destructive changes.
 

@@ -1,4 +1,4 @@
-from pydantic import BaseModel, field_validator
+from pydantic import BaseModel, ConfigDict, field_validator
 from typing import List, Optional
 from datetime import datetime
 
@@ -111,6 +111,29 @@ class IngestionResponse(BaseModel):
     total_time_ms: float
     status: str
 
+
+class CorpusDiagnosticResponse(BaseModel):
+    code: str
+    severity: str
+    message: str
+    line: Optional[int] = None
+
+
+class CorpusJobStatusResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+    id: str
+    document_id: Optional[str]
+    filename: str
+    status: str
+    stage: str
+    sequence: int
+    progress: dict
+    diagnostics: List[CorpusDiagnosticResponse]
+    error_code: Optional[str]
+    created_at: datetime
+    started_at: datetime
+    finished_at: Optional[datetime]
+    updated_at: datetime
 
 # Admin
 class RoleUpdate(BaseModel):
