@@ -1,6 +1,6 @@
 import { useEffect, useRef, type KeyboardEvent } from 'react';
 import ReactMarkdown from 'react-markdown';
-import type { ChatMessage, ChatResponse } from '../../types';
+import type { ConversationEntry } from '../../types';
 
 const prompts = [
   { text: 'What are the key principles of the DPDP Act?', label: 'Understand the DPDP Act', tag: 'DATA PROTECTION' },
@@ -10,10 +10,9 @@ const prompts = [
 ];
 
 interface ChatConversationProps {
-  messages: ChatMessage[];
+  messages: ConversationEntry[];
   input: string;
   loading: boolean;
-  lastResponse: ChatResponse | null;
   onInputChange: (value: string) => void;
   onSendQuestion: () => void;
   onPrompt: (text: string) => void;
@@ -23,7 +22,6 @@ function ChatConversation({
   messages,
   input,
   loading,
-  lastResponse,
   onInputChange,
   onSendQuestion,
   onPrompt,
@@ -49,17 +47,6 @@ function ChatConversation({
 
   return (
     <section className="chat-card">
-      {messages.length === 0 && (
-        <div className="chat-card-header">
-          <div className="chat-title">
-            <div>
-              <strong>New conversation</strong>
-              <span>ASK A QUESTION OR CHOOSE A STARTER</span>
-            </div>
-          </div>
-        </div>
-      )}
-
       <div className={`conversation ${messages.length ? 'conversation-active' : ''}`}>
         {messages.length === 0 ? (
           <div className="empty-chat">
@@ -85,33 +72,72 @@ function ChatConversation({
           <div className="message-list">
             {messages.map((message, index) => (
               <div key={index} className={`message message-${message.role}`}>
-                <div className="message-avatar">
-                  {message.role === 'user' ? 'U' : (
-                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
-                  )}
-                </div>
+                {message.role === 'assistant' && (
+                  <img
+                    className="message-avatar"
+                    src="/pwa-192x192.png"
+                    alt=""
+                    aria-hidden="true"
+                    width="192"
+                    height="192"
+                  />
+                )}
                 <div className="message-body">
-                  <div className="message-meta">
-                    <strong>{message.role === 'user' ? 'You' : 'Sentinel'}</strong>
-                    <span>{message.role}</span>
-                  </div>
+                  {message.role === 'assistant' && (
+                    <div className="message-meta">
+                      <strong>Sentinel</strong>
+                    </div>
+                  )}
                   <div className="message-content">
-                    {message.role === 'assistant' ? (
-                      <ReactMarkdown>{message.content}</ReactMarkdown>
-                    ) : (
-                      message.content
-                    )}
+                    {message.role === 'assistant'
+                      ? <ReactMarkdown>{message.content}</ReactMarkdown>
+                      : message.content}
                   </div>
+                  {message.role === 'assistant' && message.response && (
+                    <details className="message-details">
+                      <summary>
+                        <span>Sources ({message.response.citations.length})</span>
+                        <span className="message-timings">
+                          Retrieval {message.response.retrieval_time_ms} ms
+                          <span aria-hidden="true"> · </span>
+                          Response {message.response.response_time_ms} ms
+                        </span>
+                      </summary>
+                      {message.response.citations.length > 0 ? (
+                        <div className="message-sources">
+                          {message.response.citations.map((citation, citationIndex) => (
+                            <div key={citation.chunk_id} className="source-link">
+                              <span className="source-number">
+                                {String(citationIndex + 1).padStart(2, '0')}
+                              </span>
+                              <div className="source-link-text">
+                                <strong>{citation.document_title}</strong>
+                                <small>{citation.text.substring(0, 120)}...</small>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      ) : (
+                        <p className="message-no-sources">No sources were retrieved for this answer.</p>
+                      )}
+                    </details>
+                  )}
                 </div>
               </div>
             ))}
             {loading && (
               <div className="message message-assistant">
-                <div className="message-avatar">
-                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
-                </div>
+                <img
+                  className="message-avatar"
+                  src="/pwa-192x192.png"
+                  alt=""
+                  aria-hidden="true"
+                  width="192"
+                  height="192"
+                />
                 <div className="message-body">
-                  <div className="thinking">
+                  <div className="message-meta"><strong>Sentinel</strong></div>
+                  <div className="thinking" role="status" aria-label="Sentinel is thinking">
                     <span /><span /><span />
                   </div>
                 </div>
@@ -122,35 +148,6 @@ function ChatConversation({
         )}
       </div>
 
-      {lastResponse && (
-        <div style={{ padding: '12px 20px', borderTop: '1px solid #292929' }}>
-          <div className="timings">
-            <span>RETRIEVAL <strong>{lastResponse.retrieval_time_ms} ms</strong></span>
-            <span>RESPONSE <strong>{lastResponse.response_time_ms} ms</strong></span>
-            {lastResponse.citations.length > 0 && (
-              <span>SOURCES <strong>{lastResponse.citations.length}</strong></span>
-            )}
-          </div>
-          {lastResponse.citations.length > 0 && (
-            <div className="message-sources">
-              <div className="source-heading">
-                SOURCES <span>{lastResponse.citations.length} FOUND</span>
-              </div>
-              {lastResponse.citations.map((citation, index) => (
-                <div key={index} className="source-link">
-                  <span className="source-number">{String(index + 1).padStart(2, '0')}</span>
-                  <div className="source-link-text">
-                    <strong>{citation.document_title}</strong>
-                    <small>{citation.text.substring(0, 120)}...</small>
-                  </div>
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="7" y1="17" x2="17" y2="7"/><polyline points="7 7 17 7 17 17"/></svg>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-      )}
-
       <div className="composer-wrap">
         <div className="composer">
           <textarea
@@ -158,7 +155,7 @@ function ChatConversation({
             value={input}
             onChange={(event) => onInputChange(event.currentTarget.value)}
             onKeyDown={handleKeyDown}
-            placeholder="Ask anything about your knowledge base..."
+            placeholder="Enter your query here"
             disabled={loading}
             rows={1}
             aria-label="Ask a question"
@@ -169,8 +166,7 @@ function ChatConversation({
             disabled={loading || !input.trim()}
             aria-label="Send question"
           >
-            <span>ASK SENTINEL</span>
-            <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="7" y1="17" x2="17" y2="7"/><polyline points="7 7 17 7 17 17"/></svg>
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="12" y1="19" x2="12" y2="5"/><polyline points="5 12 12 5 19 12"/></svg>
           </button>
         </div>
         <div className="composer-foot">
@@ -178,7 +174,7 @@ function ChatConversation({
             <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0110 0v4"/></svg>
             Only your authorized documents are searched
           </span>
-          <span>ENTER TO SEND <kbd>↵</kbd></span>
+          <span>Press Enter to send · Shift + Enter for a new line</span>
         </div>
       </div>
     </section>

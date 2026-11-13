@@ -28,6 +28,10 @@ export interface ChatMessage {
   content: string;
 }
 
+export interface ConversationEntry extends ChatMessage {
+  response?: ChatResponse;
+}
+
 export interface ChatRequest {
   question: string;
   conversation_history: ChatMessage[];

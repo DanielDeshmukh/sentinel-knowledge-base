@@ -32,6 +32,7 @@ Thumbs.db
 # Environment
 .env
 .env.local
+.evaluator-credentials.local.txt*
 
 # Specs are ignored by default; track this approved design spec
 *.md

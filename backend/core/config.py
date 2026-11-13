@@ -22,7 +22,7 @@ class Settings(BaseSettings):
     AI_PROVIDER: Literal["nvidia", "groq"] = "nvidia"
     NVIDIA_API_KEY: str = ""
     NVIDIA_CHAT_API_URL: str = "https://integrate.api.nvidia.com/v1/chat/completions"
-    NVIDIA_CHAT_MODEL: str = "stg/nvidia/nemotron-3.5-bolt-e4b"
+    NVIDIA_CHAT_MODEL: str = "nvidia/nemotron-3.5-bolt-e4b"
     GROQ_API_KEY: str = ""
     GROQ_CHAT_API_URL: str = "https://api.groq.com/openai/v1/chat/completions"
     GROQ_CHAT_MODEL: str = ""

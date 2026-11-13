@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { Toaster } from 'react-hot-toast';
@@ -83,7 +83,7 @@ function HomeRoute() {
   return user ? <Navigate to="/chat" replace /> : <Landing />;
 }
 
-function PageHeader() {
+function PageHeader({ onOpenNavigation }: { onOpenNavigation: () => void }) {
   const location = useLocation();
   const { user } = useAuth();
 
@@ -99,10 +99,7 @@ function PageHeader() {
   return (
     <header className="topbar">
       <div className="topbar-left">
-        <button className="mobile-menu-button icon-button" onClick={() => {
-          const sidebar = document.querySelector('.sidebar');
-          if (sidebar) sidebar.classList.toggle('sidebar-open');
-        }} aria-label="Open navigation">
+        <button className="mobile-menu-button icon-button" onClick={onOpenNavigation} aria-label="Open navigation">
           <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
         </button>
         <span className="topbar-root">WORKSPACE</span>
@@ -117,7 +114,6 @@ function PageHeader() {
         <span className="topbar-account">
           <span className="tiny-avatar">{user?.email?.[0]?.toUpperCase() || 'S'}</span>
           <span>{user?.role?.toUpperCase() || 'SIGN IN'}</span>
-          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M6 9l6 6 6-6"/></svg>
         </span>
       </div>
     </header>
@@ -126,15 +122,25 @@ function PageHeader() {
 
 function AppLayout({ children }: { children: React.ReactNode }) {
   const location = useLocation();
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const hasWorkspaceChrome = location.pathname !== '/' && location.pathname !== '/login';
 
   return (
     <div className="app-shell">
-      {hasWorkspaceChrome && <Navbar />}
-      {hasWorkspaceChrome && <PageHeader />}
+      {hasWorkspaceChrome && (
+        <Navbar
+          mobileMenuOpen={mobileMenuOpen}
+          onCloseMobileMenu={() => setMobileMenuOpen(false)}
+        />
+      )}
+      {hasWorkspaceChrome && (
+        <PageHeader onOpenNavigation={() => setMobileMenuOpen(true)} />
+      )}
       <main className={hasWorkspaceChrome ? 'main-area' : ''}>
         {hasWorkspaceChrome ? (
-          <div className="main-inner">{children}</div>
+          <div className={location.pathname === '/chat' ? 'main-inner main-inner-chat' : 'main-inner'}>
+            {children}
+          </div>
         ) : (
           children
         )}

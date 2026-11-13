@@ -1,12 +1,16 @@
-import React, { useState } from 'react';
+import React from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 
-const Navbar: React.FC = () => {
+interface NavbarProps {
+  mobileMenuOpen: boolean;
+  onCloseMobileMenu: () => void;
+}
+
+const Navbar: React.FC<NavbarProps> = ({ mobileMenuOpen, onCloseMobileMenu }) => {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
-  const [mobileMenu, setMobileMenu] = useState(false);
 
   const handleLogout = () => {
     logout();
@@ -26,14 +30,14 @@ const Navbar: React.FC = () => {
 
   return (
     <>
-      {mobileMenu && (
+      {mobileMenuOpen && (
         <button
           className="mobile-overlay"
           aria-label="Close navigation"
-          onClick={() => setMobileMenu(false)}
+          onClick={onCloseMobileMenu}
         />
       )}
-      <aside className={`sidebar ${mobileMenu ? 'sidebar-open' : ''}`}>
+      <aside className={`sidebar ${mobileMenuOpen ? 'sidebar-open' : ''}`}>
         <div className="sidebar-top">
           <div className="brand">
             <div className="brand-mark" aria-hidden="true">
@@ -44,18 +48,9 @@ const Navbar: React.FC = () => {
               <small>KNOWLEDGE SYSTEMS</small>
             </div>
           </div>
-          <button className="mobile-close icon-button" onClick={() => setMobileMenu(false)} aria-label="Close menu">
+          <button className="mobile-close icon-button" onClick={onCloseMobileMenu} aria-label="Close menu">
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M18 6L6 18M6 6l12 12"/></svg>
           </button>
-        </div>
-
-        <div className="workspace-switch">
-          <div className="workspace-icon"><span>S</span></div>
-          <div className="workspace-copy">
-            <strong>Sentinel workspace</strong>
-            <span>SECURE ENVIRONMENT</span>
-          </div>
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M6 9l6 6 6-6"/></svg>
         </div>
 
         <div className="nav-label">
@@ -67,7 +62,7 @@ const Navbar: React.FC = () => {
             <button
               key={item.path}
               className={`nav-item ${location.pathname === item.path ? 'active' : ''}`}
-              onClick={() => { navigate(item.path); setMobileMenu(false); }}
+              onClick={() => { navigate(item.path); onCloseMobileMenu(); }}
             >
               {item.label === 'Ask Sentinel' && (
                 <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/></svg>
@@ -83,7 +78,7 @@ const Navbar: React.FC = () => {
             <button
               key={item.path}
               className={`nav-item ${location.pathname === item.path ? 'active' : ''}`}
-              onClick={() => { navigate(item.path); setMobileMenu(false); }}
+              onClick={() => { navigate(item.path); onCloseMobileMenu(); }}
             >
               <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
               <span>{item.label}</span>
@@ -101,7 +96,7 @@ const Navbar: React.FC = () => {
             <nav className="nav-list" aria-label="Management navigation">
               <button
                 className={`nav-item ${location.pathname === '/admin/access' ? 'active' : ''}`}
-                onClick={() => { navigate('/admin/access'); setMobileMenu(false); }}
+                onClick={() => { navigate('/admin/access'); onCloseMobileMenu(); }}
               >
                 <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87"/><path d="M16 3.13a4 4 0 010 7.75"/></svg>
                 <span>Access control</span>

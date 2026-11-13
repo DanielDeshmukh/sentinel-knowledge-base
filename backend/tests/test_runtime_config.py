@@ -15,7 +15,7 @@ class RuntimeConfigTests(unittest.TestCase):
             settings.CHAT_API_URL,
             "https://integrate.api.nvidia.com/v1/chat/completions",
         )
-        self.assertEqual(settings.CHAT_MODEL, "stg/nvidia/nemotron-3.5-bolt-e4b")
+        self.assertEqual(settings.CHAT_MODEL, "nvidia/nemotron-3.5-bolt-e4b")
         self.assertEqual(
             settings.NVIDIA_EMBEDDING_API_URL,
             "https://integrate.api.nvidia.com/v1/embeddings",
@@ -42,7 +42,7 @@ class RuntimeConfigTests(unittest.TestCase):
             settings.CHAT_API_URL,
             "https://integrate.api.nvidia.com/v1/chat/completions",
         )
-        self.assertEqual(settings.CHAT_MODEL, "stg/nvidia/nemotron-3.5-bolt-e4b")
+        self.assertEqual(settings.CHAT_MODEL, "nvidia/nemotron-3.5-bolt-e4b")
         self.assertEqual(settings.CHAT_API_KEY, "")
 
     def test_groq_provider_uses_its_own_environment_values(self):
