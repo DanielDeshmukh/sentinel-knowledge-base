@@ -1,14 +1,16 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from core.database import engine, Base
-from core.config import settings
 from api.routes import router
-from init_db import upgrade_user_schema
+from init_db import ensure_pgvector_extension, upgrade_embedding_schema, upgrade_user_schema
 
 # Create tables
+with engine.begin() as connection:
+    ensure_pgvector_extension(connection)
 Base.metadata.create_all(bind=engine)
 with engine.begin() as connection:
     upgrade_user_schema(connection)
+    upgrade_embedding_schema(connection)
 
 app = FastAPI(
     title="Sentinel Knowledge Base",

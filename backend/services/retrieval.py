@@ -4,42 +4,47 @@ from typing import List
 from sqlalchemy.orm import Session
 from sqlalchemy import text as sql_text
 from fastapi import HTTPException
+from starlette.concurrency import run_in_threadpool
 from models.user import User
-from services.embedding import embedding_service
+from services.embedding import EmbeddingServiceUnavailable, embedding_service
 from core.config import settings
 
 
 def retrieve_chunks(db: Session, question: str, user: User, top_k: int = None) -> List[dict]:
     top_k = top_k or settings.TOP_K
-    question_embedding = embedding_service.embed(question)
+    try:
+        question_embedding = embedding_service.embed(question)
+    except EmbeddingServiceUnavailable as error:
+        raise HTTPException(status_code=503, detail=str(error)) from error
+    vector_value = "[" + ",".join(map(str, question_embedding)) + "]"
+    vector_type = f"vector({settings.EMBEDDING_DIMENSION})"
 
-    query = sql_text("""
+    query = sql_text(f"""
         SELECT c.id, c.document_id, c.text, c.heading_path, c.content_hash,
                d.title as document_title,
-               1 - (c.embedding <=> :embedding::vector) as similarity
+               1 - (c.embedding <=> CAST(:embedding AS {vector_type})) as similarity
         FROM chunks c
         JOIN documents d ON c.document_id = d.id
         WHERE :user_role = ANY(c.allowed_roles)
-        ORDER BY c.embedding <=> :embedding::vector
+          AND 1 - (c.embedding <=> CAST(:embedding AS {vector_type})) >= :threshold
+        ORDER BY c.embedding <=> CAST(:embedding AS {vector_type})
         LIMIT :top_k
     """)
 
     result = db.execute(query, {
-        "embedding": " [" + ",".join(map(str, question_embedding)) + "]",
+        "embedding": vector_value,
         "user_role": user.role,
-        "top_k": top_k
+        "threshold": settings.SIMILARITY_THRESHOLD,
+        "top_k": top_k,
     })
 
     chunks = []
     for row in result.fetchall():
-        similarity = float(row.similarity)
-        if similarity >= settings.SIMILARITY_THRESHOLD:
-            chunks.append({
-                "chunk_id": row.id, "document_id": row.document_id,
-                "document_title": row.document_title, "text": row.text,
-                "heading_path": row.heading_path, "similarity": similarity
-            })
-
+        chunks.append({
+            "chunk_id": row.id, "document_id": row.document_id,
+            "document_title": row.document_title, "text": row.text,
+            "heading_path": row.heading_path, "similarity": float(row.similarity)
+        })
     return chunks
 
 
@@ -82,7 +87,7 @@ Context:
 async def handle_chat(db: Session, question: str, conversation_history: List[dict], user: User) -> dict:
     response_start = time.time()
     retrieval_start = time.time()
-    chunks = retrieve_chunks(db, question, user)
+    chunks = await run_in_threadpool(retrieve_chunks, db, question, user)
     retrieval_time = (time.time() - retrieval_start) * 1000
 
     if chunks:

@@ -1,7 +1,9 @@
-from sqlalchemy import Column, String, Text, ForeignKey, Integer
+from sqlalchemy import Column, String, Text, ForeignKey
 from sqlalchemy.dialects.postgresql import ARRAY
 from sqlalchemy.orm import relationship
+from pgvector.sqlalchemy import Vector
 from core.database import Base
+from core.config import settings
 import uuid
 
 
@@ -11,7 +13,7 @@ class Chunk(Base):
     id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
     document_id = Column(String, ForeignKey("documents.id", ondelete="CASCADE"), nullable=False)
     text = Column(Text, nullable=False)
-    embedding = Column(ARRAY(Integer), nullable=False)
+    embedding = Column(Vector(settings.EMBEDDING_DIMENSION), nullable=False)
     allowed_roles = Column(ARRAY(String), nullable=False)
     heading_path = Column(String, nullable=True)
     content_hash = Column(String, nullable=False)
@@ -25,7 +27,7 @@ class StagingChunk(Base):
     id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
     document_id = Column(String, nullable=False)
     text = Column(Text, nullable=False)
-    embedding = Column(ARRAY(Integer), nullable=False)
+    embedding = Column(Vector(settings.EMBEDDING_DIMENSION), nullable=False)
     allowed_roles = Column(ARRAY(String), nullable=False)
     heading_path = Column(String, nullable=True)
     content_hash = Column(String, nullable=False)

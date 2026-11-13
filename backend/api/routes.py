@@ -1,4 +1,5 @@
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Form
+from starlette.concurrency import run_in_threadpool
 from sqlalchemy.orm import Session
 from typing import List
 from core.database import get_db
@@ -15,6 +16,7 @@ from services.auth import (
     get_current_user, require_admin
 )
 from services.ingestion import process_ingestion
+from services.embedding import EmbeddingServiceUnavailable
 from services.retrieval import handle_chat
 from core.database import SessionLocal
 
@@ -117,7 +119,13 @@ async def ingest(
     user: User = Depends(require_admin),
     db: Session = Depends(get_db)
 ):
-    result = process_ingestion(db, file, title, classification, user.id)
+    try:
+        result = await run_in_threadpool(
+            process_ingestion, db, file, title, classification, user.id
+        )
+    except EmbeddingServiceUnavailable as error:
+        db.rollback()
+        raise HTTPException(status_code=503, detail=str(error)) from error
     return result
 
 
