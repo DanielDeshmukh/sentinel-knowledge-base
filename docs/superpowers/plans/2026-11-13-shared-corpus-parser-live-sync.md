@@ -52,7 +52,7 @@ Use these interfaces consistently between tasks:
 @dataclass(frozen=True)
 class CorpusMetadata:
     title: str
-    classification: Literal["public", "internal", "restricted"]
+    classification: Literal["public", "internal", "restricted"]  # invalid runtime values still yield diagnostics
     source_urls: tuple[str, ...] = ()
     retrieved_at: date | None = None
     reuse_basis: str | None = None
@@ -75,9 +75,11 @@ class ParsedCorpusRecord:
     ruleset_version: str
     normalized: bool
     diagnostics: tuple[CorpusDiagnostic, ...]
+    final_diagnostics: tuple[CorpusDiagnostic, ...]
 
     @property
-    def valid(self) -> bool: ...
+    def valid(self) -> bool:
+        return not any(item.severity == "error" for item in self.final_diagnostics)
 
 def parse_corpus_record(
     markdown: str, metadata: CorpusMetadata, *, normalize_on_failure: bool = True
@@ -95,18 +97,18 @@ The upload service separately validates raw byte count, extension, MIME allow-li
 - Create `backend/tests/test_corpus_parser.py`.
 - Modify `backend/corpus/__init__.py` only if package exports are needed.
 
-**Interfaces:** Implement the types and function above. Keep rule codes stable (`G1_ENCODING`, `G2_TYPE_SIZE`, `G3_METADATA`, `G4_CONTROL`, `G5_HEADING`, `G6_UNSAFE`, `G7_AADHAAR`, `G7_PAN`, `G7_AWS_KEY`, `G7_EMAIL`, `G7_PHONE`, `G8_PROVENANCE`, `G9_SYNTHETIC_LABEL`).
+**Interfaces:** Implement the types and function above. Keep rule codes stable (`G1_ENCODING`, `G2_TYPE_SIZE`, `G3_METADATA`, `G3_CLASSIFICATION`, `G4_CONTROL`, `G5_HEADING`, `G5_CONTENT`, `G6_UNSAFE`, `G7_AADHAAR`, `G7_PAN`, `G7_AWS_KEY`, `G7_EMAIL`, `G7_PHONE`, `G8_PUBLIC_SOURCE`, `G8_PUBLIC_SOURCE_URL`, `G8_RETRIEVED_AT`, `G8_REUSE_BASIS`, `G8_SYNTHETIC_FLAG`, `G8_SYNTHETIC_SOURCES`, `G8_SYNTHETIC_RETRIEVED_AT`, `G9_SYNTHETIC_LABEL`, `G9_SYNTHETIC_CONTENT_LABEL`).
 
-- [ ] **Step 1: Write parser tests first.** Cover valid public provenance; valid synthetic classification/label; invalid classification; missing title; missing first H1; invalid retrieved date/provenance; each sensitive regex; unsafe script/base64; NFC normalization; control stripping; sensitive redaction; stable SHA-256; and diagnostics without matched text.
-- [ ] **Step 2: Run the new test file and observe import/assertion failures.**
+- [x] **Step 1: Write parser tests first.** Cover valid public provenance; valid synthetic classification/label; invalid classification; missing title and body; single-line title; missing first H1; provenance URL validation; each sensitive regex; unsafe script/base64; NFC normalization; control stripping; sensitive redaction; stable SHA-256; and diagnostics without matched text.
+- [x] **Step 2: Run the new test file and observe import/assertion failures.**
 
 Run from `backend`: `..\backend\venv\Scripts\python.exe -m unittest tests.test_corpus_parser -v` when invoked from repository root, or `venv\Scripts\python.exe -m unittest tests.test_corpus_parser -v` from `backend`.
 
 Expected: tests fail because `CorpusMetadata`, `parse_corpus_record`, and the diagnostic types do not exist.
 
-- [ ] **Step 3: Implement the pure parser.** Move the existing corpus sensitive patterns and equivalent `services/gates.py` checks into compiled module-level patterns. Validate the first non-empty line as `# `, metadata values, source URL/date/reuse requirements for non-synthetic records, and the exact synthetic label for synthetic records. Do not include matched substrings in messages.
-- [ ] **Step 4: Add normalization and recheck.** Normalize NFC, remove forbidden control characters, normalize heading levels, insert the supplied title/classification where required, redact Aadhaar/PAN/AWS-style keys, then rerun every rule. Keep `normalized=True` only if content changed. Return errors if any blocking check still fails.
-- [ ] **Step 5: Run parser tests and commit the parser slice.**
+- [x] **Step 3: Implement the pure parser.** Move the existing corpus sensitive patterns and equivalent `services/gates.py` checks into compiled module-level patterns. Validate the first non-empty line as `# `, require body text beyond headings/labels, validate metadata and HTTP(S) source URLs, and enforce public provenance or the exact synthetic label/provenance rules. Do not include matched substrings in messages.
+- [x] **Step 4: Add normalization and recheck.** Normalize NFC, remove forbidden control characters, ensure the supplied title produces a first level-one heading where needed, insert the synthetic label when needed, redact recognized sensitive values, then rerun every rule. Keep `normalized=True` only if content or metadata changed. Return errors if any blocking check still fails.
+- [x] **Step 5: Run parser tests and verify it against the checked-in corpus.**
 
 Run from `backend`: `venv\Scripts\python.exe -m unittest tests.test_corpus_parser -v`.
 
