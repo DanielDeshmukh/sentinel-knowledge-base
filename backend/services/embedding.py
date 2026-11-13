@@ -33,11 +33,15 @@ class EmbeddingService:
         embeddings = []
         for start in range(0, len(texts), self.MAX_BATCH_SIZE):
             embeddings.extend(
-                self._embed_batch(texts[start:start + self.MAX_BATCH_SIZE], "passage")
+                self._embed_batch(
+                    texts[start:start + self.MAX_BATCH_SIZE], "passage", start
+                )
             )
         return embeddings
 
-    def _embed_batch(self, texts: List[str], input_type: str) -> List[List[float]]:
+    def _embed_batch(
+        self, texts: List[str], input_type: str, batch_offset: int = 0
+    ) -> List[List[float]]:
         if not texts:
             return []
         if not settings.NVIDIA_API_KEY:
@@ -82,18 +86,35 @@ class EmbeddingService:
                 )
                 logger.warning(
                     "NVIDIA embedding provider returned HTTP %s (request_id=%s, "
-                    "batch_size=%s, attempt=%s/%s).",
+                    "batch_size=%s, input_type=%s, item_range=%s-%s, attempt=%s/%s).",
                     response.status_code,
                     request_id,
                     len(texts),
+                    input_type,
+                    batch_offset + 1,
+                    batch_offset + len(texts),
                     attempt + 1,
                     self.MAX_RETRIES + 1,
                 )
                 retryable = response.status_code == 429 or response.status_code >= 500
                 if not retryable or attempt == self.MAX_RETRIES:
+                    if response.status_code == 500 and len(texts) > 1:
+                        midpoint = len(texts) // 2
+                        logger.warning(
+                            "Splitting NVIDIA embedding batch after repeated HTTP 500 "
+                            "(item_range=%s-%s).",
+                            batch_offset + 1,
+                            batch_offset + len(texts),
+                        )
+                        return self._embed_batch(
+                            texts[:midpoint], input_type, batch_offset
+                        ) + self._embed_batch(
+                            texts[midpoint:], input_type, batch_offset + midpoint
+                        )
                     raise EmbeddingServiceUnavailable(
                         f"NVIDIA embedding provider returned HTTP {response.status_code}. "
-                        f"Request ID: {request_id}."
+                        f"Request ID: {request_id}. Failed item position: "
+                        f"{batch_offset + 1}."
                     ) from error
             except httpx.RequestError as error:
                 logger.warning(
