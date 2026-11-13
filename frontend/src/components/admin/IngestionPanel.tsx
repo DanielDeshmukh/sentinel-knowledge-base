@@ -220,11 +220,12 @@ function IngestionPanel() {
   return (
     <div className="ingestion-layout">
       <div className="ingestion-form panel">
-        <div style={{ padding: '20px 24px', borderBottom: '1px solid #2a2a2a' }}>
-          <strong style={{ fontSize: '12px' }}>ADD CORPUS RECORD</strong>
-          <span style={{ color: '#777', font: '500 8px IBM Plex Mono, monospace', marginLeft: '8px' }}>ADMIN UPLOAD</span>
+        <div className="ingestion-panel-heading">
+          <h3>Record details</h3>
+          <p>Enter source and access metadata before syncing.</p>
         </div>
-        <div style={{ padding: '24px' }}>
+        <div className="ingestion-form-body">
+          <div className="ingestion-fields-grid">
           <label className="corpus-field">TITLE
             <input value={title} onChange={(event) => setTitle(event.currentTarget.value)} placeholder="Document title" />
           </label>
@@ -235,13 +236,13 @@ function IngestionPanel() {
               <option value="restricted">Restricted</option>
             </select>
           </label>
-          {!synthetic && <label className="corpus-field">SOURCE URLS <span>(one per line)</span>
+          {!synthetic && <label className="corpus-field corpus-field-wide">SOURCE URLS <span>(one per line)</span>
             <textarea rows={3} value={sourceUrls} onChange={(event) => setSourceUrls(event.currentTarget.value)} placeholder="https://example.org/source" />
           </label>}
           {!synthetic && <label className="corpus-field">RETRIEVED DATE
             <input type="date" value={retrievedAt} onChange={(event) => setRetrievedAt(event.currentTarget.value)} />
           </label>}
-          <label className="corpus-field">REUSE BASIS
+          <label className="corpus-field corpus-field-wide">REUSE BASIS
             <textarea rows={3} value={reuseBasis} onChange={(event) => setReuseBasis(event.currentTarget.value)} placeholder="Describe the source's license or the original work performed" />
           </label>
           <label className="corpus-checkbox">
@@ -260,8 +261,9 @@ function IngestionPanel() {
           {synthetic && <label className="corpus-field">SYNTHETIC LABEL
             <input value={syntheticLabel} onChange={(event) => setSyntheticLabel(event.currentTarget.value)} placeholder="SYNTHETIC: for demonstration only" />
           </label>}
+          </div>
 
-          <div {...getRootProps()} style={{ padding: '28px', border: `1px dashed ${isDragActive ? '#a0a09d' : '#303030'}`, textAlign: 'center', cursor: 'pointer', background: isDragActive ? '#1a1a1a' : '#161616' }}>
+          <div className="ingestion-dropzone" {...getRootProps()} style={{ padding: '20px', border: `1px dashed ${isDragActive ? '#a0a09d' : '#303030'}`, textAlign: 'center', cursor: 'pointer', background: isDragActive ? '#1a1a1a' : '#161616' }}>
             <input {...getInputProps()} />
             <p style={{ color: '#a5a5a5', fontSize: '12px', marginBottom: '4px' }}>
               {selectedFile ? selectedFile.name : isDragActive ? 'Drop file here' : 'Drag & drop a file here'}
@@ -269,19 +271,19 @@ function IngestionPanel() {
             <p style={{ fontSize: '10px', color: '#777', marginTop: '8px' }}>MD, PDF, DOCX — max 4 MB</p>
           </div>
 
-          <button className="btn-primary" onClick={handleIngest} disabled={ingesting || Boolean(activeJobId) || !selectedFile || !title.trim()} style={{ width: '100%', marginTop: '20px' }}>
+          <button className="btn-primary ingestion-submit" onClick={handleIngest} disabled={ingesting || Boolean(activeJobId) || !selectedFile || !title.trim()}>
             {ingesting || activeJobId ? 'SYNCING TO PGVECTOR…' : 'VALIDATE AND SYNC'}
           </button>
         </div>
       </div>
 
       <div className="pipeline-panel panel">
-        <div style={{ padding: '20px 24px', borderBottom: '1px solid #2a2a2a' }}>
-          <strong style={{ fontSize: '12px' }}>PARSER AND VECTOR SYNC</strong>
-          <span style={{ color: '#777', font: '500 8px IBM Plex Mono, monospace', marginLeft: '8px' }}>10 STAGES</span>
+        <div className="ingestion-panel-heading">
+          <h3>Sync progress</h3>
+          <p>Parser, embedding, and pgvector status.</p>
         </div>
-        <div style={{ padding: '24px' }}>
-          <div className="pipeline-list">
+        <div className="pipeline-panel-body" aria-label="Corpus sync pipeline">
+          <div className="pipeline-list" aria-live="polite">
             {pipelineSteps.map((step, index) => {
               const stage = events.find((item) => item.stage === step.id);
               const status = stage?.status || 'pending';

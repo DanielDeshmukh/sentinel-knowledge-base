@@ -51,62 +51,66 @@ const Admin: React.FC = () => {
   };
 
   return (
-    <>
-      <div className="inner-page-heading">
+    <section className="admin-page">
+      <header className="inner-page-heading">
         <div>
-          <div className="section-kicker"><span>03</span> / KNOWLEDGE OPERATIONS</div>
+          <div className="section-kicker">KNOWLEDGE OPERATIONS</div>
           <h1>Ingest a document<span className="heading-period">.</span></h1>
-          <p>From raw file to searchable knowledge, with every step in view.</p>
+          <p>Validate, index, and publish a corpus record for authorized chat.</p>
         </div>
         <span className="badge">ADMIN WORKSPACE</span>
-      </div>
+      </header>
 
-      <div style={{ display: 'flex', gap: '0', marginBottom: '30px' }}>
+      <div className="admin-tabs" role="tablist" aria-label="Admin workspace">
         <button
           onClick={() => setActiveTab('ingest')}
           className={`text-action ${activeTab === 'ingest' ? 'active' : ''}`}
+          role="tab"
+          aria-selected={activeTab === 'ingest'}
+          aria-controls="admin-ingestion-panel"
           style={{
             borderBottom: activeTab === 'ingest' ? '2px solid #f0f0ed' : '2px solid transparent',
             paddingBottom: '10px',
-            marginRight: '24px',
             color: activeTab === 'ingest' ? '#f0f0ed' : '#777',
           }}
         >
-          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
-          INGESTION
+          Ingestion
         </button>
         <button
           onClick={() => setActiveTab('users')}
           className={`text-action ${activeTab === 'users' ? 'active' : ''}`}
+          role="tab"
+          aria-selected={activeTab === 'users'}
+          aria-controls="admin-users-panel"
           style={{
             borderBottom: activeTab === 'users' ? '2px solid #f0f0ed' : '2px solid transparent',
             paddingBottom: '10px',
             color: activeTab === 'users' ? '#f0f0ed' : '#777',
           }}
         >
-          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87"/><path d="M16 3.13a4 4 0 010 7.75"/></svg>
-          USERS
+          Users
         </button>
       </div>
 
-      <div hidden={activeTab !== 'ingest'}>
-        <IngestionPanel />
-      </div>
-      {activeTab === 'users' && (
+      <div id="admin-users-panel" role="tabpanel" tabIndex={0} hidden={activeTab !== 'users'} className="admin-user-panel">
         <UserDirectory
           users={users}
           isLoading={usersLoading}
           onRoleChange={handleRoleChange}
         />
-      )}
-      <div hidden={activeTab !== 'ingest'}>
+      </div>
+      <div id="admin-ingestion-panel" role="tabpanel" tabIndex={0} hidden={activeTab !== 'ingest'} className="admin-ingestion-content">
+        <section className="admin-ingestion-section" aria-labelledby="ingestion-section-title">
+          <div className="admin-section-heading"><h2 id="ingestion-section-title">New corpus record</h2><p>Required source and classification details, followed by live parser and vector status.</p></div>
+          <IngestionPanel />
+        </section>
         <DocumentLibrary
           documents={documents}
           isLoading={docsLoading}
           onDelete={handleDeleteDocument}
         />
       </div>
-    </>
+    </section>
   );
 };
 

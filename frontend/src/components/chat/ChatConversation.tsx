@@ -52,12 +52,9 @@ function ChatConversation({
       {messages.length === 0 && (
         <div className="chat-card-header">
           <div className="chat-title">
-            <div className="assistant-icon">
-              <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
-            </div>
             <div>
-              <strong>Sentinel Assistant</strong>
-              <span>YOUR SECURE KNOWLEDGE COMPANION</span>
+              <strong>New conversation</strong>
+              <span>ASK A QUESTION OR CHOOSE A STARTER</span>
             </div>
           </div>
         </div>
@@ -66,13 +63,8 @@ function ChatConversation({
       <div className={`conversation ${messages.length ? 'conversation-active' : ''}`}>
         {messages.length === 0 ? (
           <div className="empty-chat">
-            <div className="empty-spark">
-              <svg width="29" height="29" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
-              <span className="spark-line spark-line-a" />
-              <span className="spark-line spark-line-b" />
-            </div>
-            <h3>Ask anything about your knowledge base</h3>
-            <p>Search across all documents you&apos;re authorized to access.</p>
+            <h3>What would you like to know?</h3>
+            <p>Answers use only documents you are authorized to access.</p>
             <div className="prompt-grid">
               {prompts.map((prompt) => (
                 <button
@@ -145,14 +137,14 @@ function ChatConversation({
                 SOURCES <span>{lastResponse.citations.length} FOUND</span>
               </div>
               {lastResponse.citations.map((citation, index) => (
-                <button key={index} className="source-link">
+                <div key={index} className="source-link">
                   <span className="source-number">{String(index + 1).padStart(2, '0')}</span>
                   <div className="source-link-text">
                     <strong>{citation.document_title}</strong>
                     <small>{citation.text.substring(0, 120)}...</small>
                   </div>
                   <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="7" y1="17" x2="17" y2="7"/><polyline points="7 7 17 7 17 17"/></svg>
-                </button>
+                </div>
               ))}
             </div>
           )}

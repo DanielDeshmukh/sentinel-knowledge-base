@@ -9,18 +9,17 @@ interface DocumentLibraryProps {
 
 function DocumentLibrary({ documents, isLoading, onDelete }: DocumentLibraryProps) {
   return (
-    <>
-      <div className="table-heading">
+    <section className="admin-library-section">
+      <div className="table-heading admin-library-heading">
         <div>
-          <div className="section-kicker"><span>01</span> / INGESTED DOCUMENTS</div>
-          <h2>Document library <span style={{ font: '500 10px IBM Plex Mono, monospace', color: '#707070', marginLeft: '6px', verticalAlign: '3px' }}>{String(documents?.length || 0).padStart(2, '0')}</span></h2>
+          <h2>Ingested documents <span className="admin-document-count">{documents?.length ?? 0}</span></h2>
         </div>
       </div>
 
       {isLoading ? (
         <div className="loading">LOADING DOCUMENTS</div>
       ) : (
-        <div className="document-table">
+        <div className="document-table admin-document-table">
           <div className="document-table-head">
             <span>DOCUMENT NAME</span>
             <span>CLASSIFICATION</span>
@@ -37,16 +36,13 @@ function DocumentLibrary({ documents, isLoading, onDelete }: DocumentLibraryProp
             documents?.map((doc) => (
               <div className="document-row" key={doc.id}>
                 <div className="document-name">
-                  <span className="file-icon">
-                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
-                  </span>
                   <span>
                     <strong>{doc.title}</strong>
                     <small>{doc.source || ''}</small>
                   </span>
                 </div>
                 <ClassificationBadge value={doc.classification} />
-                <span className="table-muted">{new Date(doc.created_at).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }).toUpperCase()}</span>
+                <span className="table-muted">{new Date(doc.created_at).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}</span>
                 <div className="row-actions">
                   <button
                     className="row-icon delete-icon"
@@ -61,7 +57,7 @@ function DocumentLibrary({ documents, isLoading, onDelete }: DocumentLibraryProp
           )}
         </div>
       )}
-    </>
+    </section>
   );
 }
 
