@@ -15,7 +15,7 @@ from models.user import User
 from models.document import Document
 from models.chunk import Chunk, StagingChunk
 from models.schemas import (
-    UserCreate, UserLogin, Token, UserResponse,
+    UserCreate, UserLogin, AuthToken, UserResponse,
     DocumentResponse, ChatRequest, ChatResponse, Citation,
     CorpusJobStatusResponse, RoleUpdate
 )
@@ -35,7 +35,7 @@ corpus_job_store = CorpusJobStore()
 
 # ============ Auth Routes ============
 
-@router.post("/auth/register", response_model=Token)
+@router.post("/auth/register", response_model=AuthToken)
 async def register(user_data: UserCreate, db: Session = Depends(get_db)):
     existing = db.query(User).filter(User.email == user_data.email).first()
     if existing:
@@ -55,10 +55,10 @@ async def register(user_data: UserCreate, db: Session = Depends(get_db)):
     db.refresh(user)
 
     token = create_access_token(data={"sub": user.email})
-    return {"access_token": token, "token_type": "bearer"}
+    return {"access_token": token, "token_type": "bearer", "user": user}
 
 
-@router.post("/auth/login", response_model=Token)
+@router.post("/auth/login", response_model=AuthToken)
 async def login(user_data: UserLogin, db: Session = Depends(get_db)):
     user = db.query(User).filter(User.email == user_data.email).first()
     if not user or not verify_password(user_data.password, user.password_hash):
@@ -67,7 +67,7 @@ async def login(user_data: UserLogin, db: Session = Depends(get_db)):
         raise HTTPException(status_code=403, detail="Account not approved")
 
     token = create_access_token(data={"sub": user.email})
-    return {"access_token": token, "token_type": "bearer"}
+    return {"access_token": token, "token_type": "bearer", "user": user}
 
 
 @router.get("/auth/me", response_model=UserResponse)

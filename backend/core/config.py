@@ -28,7 +28,7 @@ class Settings(BaseSettings):
     GROQ_CHAT_MODEL: str = ""
 
     # Search
-    SIMILARITY_THRESHOLD: float = 0.45
+    SIMILARITY_THRESHOLD: float = 0.40
     TOP_K: int = 5
 
     # Upload

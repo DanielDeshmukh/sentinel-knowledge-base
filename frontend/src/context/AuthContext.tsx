@@ -27,33 +27,37 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   }, []);
 
   const loadUser = async (): Promise<User | null> => {
+    const tokenAtRequestStart = localStorage.getItem('token');
     try {
       const userData = await getMe();
+      // A sign-in can replace an expired token while this restore request is in
+      // flight. Ignore the old response so it cannot overwrite the new session.
+      if (localStorage.getItem('token') !== tokenAtRequestStart) return null;
       setUser(userData);
       return userData;
     } catch {
-      localStorage.removeItem('token');
-      setUser(null);
+      if (localStorage.getItem('token') === tokenAtRequestStart) {
+        localStorage.removeItem('token');
+        setUser(null);
+      }
       return null;
     } finally {
-      setLoading(false);
+      if (localStorage.getItem('token') === tokenAtRequestStart) setLoading(false);
     }
   };
 
   const login = async (email: string, password: string) => {
     const { login: apiLogin } = await import('../services/api');
-    await apiLogin(email, password);
-    if (!(await loadUser())) {
-      throw new Error('Login succeeded, but your user session could not be loaded. Please try again.');
-    }
+    const response = await apiLogin(email, password);
+    setUser(response.user);
+    setLoading(false);
   };
 
   const register = async (displayName: string, email: string, password: string, requestedRole: 'public' | 'internal' | 'restricted') => {
     const { register: apiRegister } = await import('../services/api');
-    await apiRegister(displayName, email, password, requestedRole);
-    if (!(await loadUser())) {
-      throw new Error('Your account was created, but the user session could not be loaded. Please sign in.');
-    }
+    const response = await apiRegister(displayName, email, password, requestedRole);
+    setUser(response.user);
+    setLoading(false);
   };
 
   const logout = () => {

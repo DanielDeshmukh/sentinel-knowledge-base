@@ -35,7 +35,7 @@ export const register = async (displayName: string, email: string, password: str
     email,
     password,
     requested_role: requestedRole,
-  });
+  }, { timeout: 15000 });
   if (response.data.access_token) {
     localStorage.setItem('token', response.data.access_token);
   }
@@ -43,7 +43,7 @@ export const register = async (displayName: string, email: string, password: str
 };
 
 export const login = async (email: string, password: string) => {
-  const response = await api.post<TokenResponse>('/auth/login', { email, password });
+  const response = await api.post<TokenResponse>('/auth/login', { email, password }, { timeout: 15000 });
   if (response.data.access_token) {
     localStorage.setItem('token', response.data.access_token);
   }

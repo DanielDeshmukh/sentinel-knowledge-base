@@ -8,6 +8,11 @@ from core.config import Settings
 
 
 class RuntimeConfigTests(unittest.TestCase):
+    def test_default_similarity_threshold_admits_observed_dpdp_match(self):
+        settings = Settings(_env_file=None)
+
+        self.assertEqual(settings.SIMILARITY_THRESHOLD, 0.40)
+
     def test_default_chat_provider_uses_nvidia_free_endpoint(self):
         settings = Settings(_env_file=None)
 

@@ -50,6 +50,12 @@ class UserResponse(BaseModel):
         from_attributes = True
 
 
+class AuthToken(BaseModel):
+    access_token: str
+    token_type: str
+    user: UserResponse
+
+
 # Documents
 class DocumentCreate(BaseModel):
     title: str

@@ -1,4 +1,5 @@
 import time
+import re
 import httpx
 from typing import List
 from sqlalchemy.orm import Session
@@ -10,10 +11,53 @@ from services.embedding import EmbeddingServiceUnavailable, embedding_service
 from core.config import settings
 
 
-def retrieve_chunks(db: Session, question: str, user: User, top_k: int = None) -> List[dict]:
+FOLLOW_UP_REFERENCE_PATTERN = re.compile(
+    r"\b(?:it|they|them|their|its|this|that|these|those|there|then|such|former|latter)\b|"
+    r"\bwhat about\b|\bwhy so\b|\bhow so\b",
+    re.IGNORECASE,
+)
+
+
+def build_retrieval_query(question: str, conversation_history: List[dict]) -> str:
+    """Add the last completed exchange when the new question refers back to it."""
+    if not conversation_history or not FOLLOW_UP_REFERENCE_PATTERN.search(question):
+        return question
+
+    last_assistant_index = next(
+        (index for index in range(len(conversation_history) - 1, -1, -1)
+         if conversation_history[index].get("role") == "assistant"),
+        None,
+    )
+    if last_assistant_index is None:
+        return question
+
+    previous_user = next(
+        (message for message in reversed(conversation_history[:last_assistant_index])
+         if message.get("role") == "user"),
+        None,
+    )
+    previous_answer = conversation_history[last_assistant_index].get("content", "")
+    if not previous_user or not previous_answer:
+        return question
+
+    return (
+        f"Previous question: {previous_user.get('content', '')[:500]}\n"
+        f"Previous answer: {previous_answer[:1200]}\n"
+        f"Follow-up question: {question}"
+    )
+
+
+def retrieve_chunks(
+    db: Session,
+    question: str,
+    user: User,
+    top_k: int = None,
+    conversation_history: List[dict] = None,
+) -> List[dict]:
     top_k = top_k or settings.TOP_K
     try:
-        question_embedding = embedding_service.embed(question)
+        retrieval_query = build_retrieval_query(question, conversation_history or [])
+        question_embedding = embedding_service.embed(retrieval_query)
     except EmbeddingServiceUnavailable as error:
         raise HTTPException(status_code=503, detail=str(error)) from error
     vector_value = "[" + ",".join(map(str, question_embedding)) + "]"
@@ -88,7 +132,9 @@ Context:
 async def handle_chat(db: Session, question: str, conversation_history: List[dict], user: User) -> dict:
     response_start = time.time()
     retrieval_start = time.time()
-    chunks = await run_in_threadpool(retrieve_chunks, db, question, user)
+    chunks = await run_in_threadpool(
+        retrieve_chunks, db, question, user, None, conversation_history
+    )
     retrieval_time = (time.time() - retrieval_start) * 1000
 
     if chunks:
