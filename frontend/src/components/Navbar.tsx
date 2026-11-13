@@ -8,7 +8,7 @@ interface NavbarProps {
 }
 
 const Navbar: React.FC<NavbarProps> = ({ mobileMenuOpen, onCloseMobileMenu }) => {
-  const { user, logout } = useAuth();
+  const { user, logout, loading } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
 
@@ -17,6 +17,40 @@ const Navbar: React.FC<NavbarProps> = ({ mobileMenuOpen, onCloseMobileMenu }) =>
     navigate('/login', { replace: true });
     onCloseMobileMenu();
   };
+
+  if (!user && loading) {
+    return (
+      <aside className={`sidebar sidebar-skeleton ${mobileMenuOpen ? 'sidebar-open' : ''}`} aria-hidden="true">
+        <div className="sidebar-top">
+          <div className="brand">
+            <div className="brand-mark"><img src="/pwa-192x192.png" alt="" width="34" height="34" /></div>
+            <div className="brand-words"><strong>SENTINEL</strong><small>KNOWLEDGE SYSTEMS</small></div>
+          </div>
+          <span className="skeleton-shape skeleton-close" />
+        </div>
+        <div className="nav-label"><span>WORKSPACE</span><span>01 — 03</span></div>
+        <div className="nav-list">
+          {Array.from({ length: 3 }, (_, index) => (
+            <div className="nav-item skeleton-nav-item" key={index}>
+              <span className="skeleton-shape skeleton-nav-icon" />
+              <span className="skeleton-shape skeleton-nav-label" />
+              <span className="skeleton-shape skeleton-nav-number" />
+            </div>
+          ))}
+        </div>
+        <div className="nav-label skeleton-manage-label"><span className="skeleton-shape" /><span className="skeleton-shape" /></div>
+        <div className="nav-list"><div className="nav-item skeleton-nav-item"><span className="skeleton-shape skeleton-nav-icon" /><span className="skeleton-shape skeleton-nav-label" /><span className="skeleton-shape skeleton-nav-number" /></div></div>
+        <div className="sidebar-spacer" />
+        <div className="security-note skeleton-security-note">
+          <div className="security-note-top"><span className="skeleton-shape skeleton-security-icon" /><span className="skeleton-shape skeleton-security-mark" /></div>
+          <span className="skeleton-shape skeleton-security-title" /><span className="skeleton-shape skeleton-security-copy" /><span className="skeleton-shape skeleton-security-copy skeleton-security-copy-short" />
+          <div className="security-line"><span /> <span className="skeleton-shape skeleton-security-label" /></div>
+        </div>
+        <div className="sidebar-logout skeleton-logout"><span className="skeleton-shape skeleton-logout-label" /><span className="skeleton-shape skeleton-logout-icon" /></div>
+        <div className="sidebar-bottom"><span className="skeleton-shape skeleton-footer-line" /><span className="skeleton-shape skeleton-footer-version" /></div>
+      </aside>
+    );
+  }
 
   if (!user) return null;
 

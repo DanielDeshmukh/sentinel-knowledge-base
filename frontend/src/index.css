@@ -4108,3 +4108,140 @@ input:focus, textarea:focus, select:focus {
     font-size: 10px;
   }
 }
+
+/* Auth restoration skeletons mirror the workspace page layouts. */
+.skeleton-shape {
+  display: block;
+  border-radius: 6px;
+  background: linear-gradient(105deg, rgba(178, 204, 184, .07) 28%, rgba(178, 204, 184, .17) 45%, rgba(178, 204, 184, .07) 62%);
+  background-size: 240% 100%;
+  animation: sentinel-skeleton-shimmer 1.45s ease-in-out infinite;
+}
+
+@keyframes sentinel-skeleton-shimmer {
+  from { background-position: 100% 0; }
+  to { background-position: -100% 0; }
+}
+
+.skeleton-heading { display: flex; justify-content: space-between; gap: 24px; }
+.skeleton-heading-copy { display: grid; gap: 12px; width: min(100%, 560px); }
+.skeleton-kicker { width: 128px; height: 10px; }
+.skeleton-title { width: min(300px, 72vw); height: 34px; }
+.skeleton-title-wide { width: min(385px, 72vw); }
+.skeleton-description { width: min(410px, 80vw); height: 13px; }
+.skeleton-badge { width: 116px; height: 30px; border-radius: 99px; }
+.skeleton-section-title { width: 170px; height: 19px; }
+.skeleton-field-label { width: 74px; height: 9px; margin-bottom: 7px; }
+
+.skeleton-chat-card { display: flex; flex-direction: column; overflow: hidden; }
+.skeleton-chat-messages { display: flex; width: min(100%, 960px); min-height: 320px; flex: 1; flex-direction: column; justify-content: space-between; gap: 34px; margin: 0 auto; padding: 30px 32px; }
+.skeleton-message { display: flex; align-items: flex-start; gap: 14px; }
+.skeleton-message-user { align-self: flex-end; flex-direction: row-reverse; }
+.skeleton-message-avatar { width: 38px; height: 38px; flex: 0 0 38px; border-radius: 10px; }
+.skeleton-person-avatar { border-radius: 50%; }
+.skeleton-message-copy { display: grid; gap: 10px; width: min(560px, 72vw); padding-top: 3px; }
+.skeleton-message-meta { width: 88px; height: 9px; }
+.skeleton-message-line { height: 14px; }
+.skeleton-line-long { width: min(530px, 68vw); }
+.skeleton-line-medium { width: min(390px, 58vw); }
+.skeleton-line-short { width: min(240px, 44vw); }
+.skeleton-composer-wrap { border-top: 1px solid rgba(178, 204, 184, .1); }
+.skeleton-composer { display: flex; align-items: center; justify-content: space-between; gap: 20px; padding: 10px 12px 10px 18px; }
+.skeleton-composer-placeholder { width: 54%; height: 12px; }
+.skeleton-send-button { width: 44px; height: 38px; border-radius: 8px; }
+.skeleton-composer-note { width: min(250px, 48%); height: 8px; }
+.skeleton-note-short { width: min(180px, 35%); }
+.skeleton-composer-wrap .composer-foot { justify-content: space-between; }
+
+.skeleton-document-count { width: 95px; height: 23px; }
+.skeleton-search { width: min(390px, 52vw); height: 42px; border-radius: 9px; }
+.skeleton-document-table { overflow: hidden; }
+.skeleton-document-title { width: min(360px, 52vw); height: 13px; }
+.skeleton-document-badge { width: 86px; height: 22px; border-radius: 99px; }
+.skeleton-document-date { width: 78px; height: 10px; }
+
+.skeleton-tabs { display: flex; gap: 28px; margin: 0 0 6px; padding: 8px 0 14px; border-bottom: 1px solid rgba(178, 204, 184, .1); }
+.skeleton-tabs .skeleton-shape { width: 74px; height: 12px; }
+.skeleton-ingestion-layout { align-items: stretch; }
+.skeleton-form-panel, .skeleton-pipeline-panel { min-height: 510px; }
+.skeleton-form-panel > .ingestion-panel-heading, .skeleton-pipeline-panel > .ingestion-panel-heading { display: grid; justify-items: start; gap: 10px; }
+.skeleton-form-panel .ingestion-form-body { display: grid; gap: 20px; }
+.skeleton-field-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 18px 16px; }
+.skeleton-field-grid > div { display: grid; align-content: start; }
+.skeleton-field-wide { grid-column: 1 / -1; }
+.skeleton-field-input { width: 100%; height: 42px; border-radius: 8px; }
+.skeleton-field-area { width: 100%; height: 72px; border-radius: 8px; }
+.skeleton-dropzone { width: 100%; height: 108px; border: 1px dashed rgba(178, 204, 184, .15); border-radius: 10px; }
+.skeleton-submit { width: 100%; height: 48px; border-radius: 9px; }
+.skeleton-pipeline-body { display: grid; gap: 15px; padding-top: 20px; }
+.skeleton-pipeline-step { display: flex; min-height: 32px; align-items: flex-start; gap: 14px; }
+.skeleton-step-index { width: 24px; height: 24px; flex: 0 0 24px; border-radius: 7px; }
+.skeleton-step-label { width: min(220px, 70%); height: 12px; margin-top: 5px; }
+.skeleton-library { display: grid; gap: 12px; margin-top: 24px; }
+.skeleton-library > .skeleton-section-title { margin-bottom: 5px; }
+.skeleton-library-row { height: 60px; border: 1px solid rgba(178, 204, 184, .1); border-radius: 9px; }
+
+.skeleton-access-heading { align-items: center; }
+.skeleton-access-heading > div:first-child { display: grid; gap: 10px; }
+.skeleton-access-counts { display: flex; gap: 20px; }
+.skeleton-access-counts .skeleton-shape { width: 72px; height: 13px; }
+.skeleton-access-list { margin-top: 14px; }
+.skeleton-access-row { min-height: 104px; }
+.skeleton-user-avatar { width: 38px; height: 38px; flex: 0 0 38px; border-radius: 50%; }
+.skeleton-access-row .access-user-identity > div { display: grid; gap: 8px; }
+.skeleton-user-name { width: 142px; height: 12px; }
+.skeleton-user-email { width: 190px; height: 10px; }
+.skeleton-role { width: 66px; height: 12px; }
+.skeleton-role-request { width: 96px; height: 12px; }
+.skeleton-access-action { display: grid; grid-template-columns: minmax(110px, 1fr) auto; align-items: end; gap: 9px; }
+.skeleton-save-role { width: 108px; height: 42px; border-radius: 8px; }
+
+.skeleton-auth-shell { min-height: 100vh; }
+.skeleton-auth-panel { display: grid; justify-items: center; gap: 15px; }
+.skeleton-auth-brand { width: 150px; height: 38px; margin-bottom: 12px; }
+.skeleton-auth-title { width: 190px; height: 25px; }
+.skeleton-auth-description { width: 250px; height: 12px; margin-bottom: 12px; }
+.skeleton-auth-panel .skeleton-field-label { justify-self: start; margin: 2px 0 -8px; }
+.skeleton-auth-input { width: 100%; height: 52px; border-radius: 9px; }
+.skeleton-auth-submit { width: 100%; height: 54px; margin-top: 8px; border-radius: 9px; }
+.skeleton-landing-panel { width: min(100%, 560px); min-height: 290px; align-content: center; }
+
+.skeleton-nav-item { pointer-events: none; }
+.skeleton-nav-icon { width: 17px; height: 17px; border-radius: 4px; }
+.skeleton-nav-label { width: 105px; height: 11px; }
+.skeleton-nav-number { width: 17px; height: 9px; }
+.skeleton-close { width: 16px; height: 16px; }
+.skeleton-manage-label { margin-top: 30px; }
+.skeleton-manage-label .skeleton-shape:first-child { width: 52px; height: 9px; }
+.skeleton-manage-label .skeleton-shape:last-child { width: 15px; height: 9px; }
+.skeleton-security-icon { width: 30px; height: 30px; border-radius: 8px; }
+.skeleton-security-mark { width: 15px; height: 15px; }
+.skeleton-security-title { width: 132px; height: 27px; margin: 0 0 12px; }
+.skeleton-security-copy { width: 148px; height: 10px; margin: 0 0 8px; }
+.skeleton-security-copy-short { width: 116px; }
+.skeleton-security-label { width: 132px; height: 8px; }
+.skeleton-logout { pointer-events: none; }
+.skeleton-logout-label { width: 72px; height: 11px; }
+.skeleton-logout-icon { width: 17px; height: 17px; }
+.skeleton-footer-line { width: 96px; height: 8px; }
+.skeleton-footer-version { width: 25px; height: 8px; }
+.skeleton-topbar-status { gap: 7px; }
+.skeleton-topbar-status i { width: 7px; height: 7px; }
+.skeleton-topbar-status span { width: 88px; height: 8px; }
+.skeleton-topbar-account { gap: 8px; }
+.skeleton-topbar-account span:first-child { width: 25px; height: 25px; border-radius: 8px; }
+.skeleton-topbar-account span:last-child { width: 52px; height: 8px; }
+
+@media (prefers-reduced-motion: reduce) {
+  .skeleton-shape { animation: none; background: rgba(178, 204, 184, .12); }
+}
+
+@media (max-width: 700px) {
+  .skeleton-heading { align-items: start; }
+  .skeleton-badge { display: none; }
+  .skeleton-chat-messages { padding: 24px 18px; }
+  .skeleton-access-heading { align-items: start; flex-direction: column; }
+  .skeleton-access-row { grid-template-columns: minmax(0, 1fr) auto; }
+  .skeleton-access-row > div:nth-child(2), .skeleton-access-row > div:nth-child(3) { grid-column: span 1; }
+  .skeleton-access-action { grid-column: 1 / -1; }
+}

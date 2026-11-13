@@ -10,6 +10,7 @@ import Admin from './pages/Admin';
 import AccessControl from './pages/AccessControl';
 import Navbar from './components/Navbar';
 import Landing from './pages/Landing';
+import PageSkeleton, { type SkeletonPage } from './components/PageSkeleton';
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -20,12 +21,12 @@ const queryClient = new QueryClient({
   },
 });
 
-function ProtectedRoute({ children }: { children: React.ReactNode }) {
+function ProtectedRoute({ children, page }: { children: React.ReactNode; page: SkeletonPage }) {
   const { user, loading } = useAuth();
   const location = useLocation();
 
   if (loading) {
-    return <div className="loading">CONNECTING TO WORKSPACE</div>;
+    return <PageSkeleton page={page} />;
   }
 
   if (!user) {
@@ -35,11 +36,11 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
   return <>{children}</>;
 }
 
-function AdminRoute({ children }: { children: React.ReactNode }) {
+function AdminRoute({ children, page }: { children: React.ReactNode; page: SkeletonPage }) {
   const { user, loading } = useAuth();
 
   if (loading) {
-    return <div className="loading">CONNECTING TO WORKSPACE</div>;
+    return <PageSkeleton page={page} />;
   }
 
   if (!user || user.role !== 'admin') {
@@ -54,7 +55,7 @@ function LoginRoute() {
   const location = useLocation();
 
   if (loading) {
-    return <div className="loading">CONNECTING TO WORKSPACE</div>;
+    return <PageSkeleton page="login" />;
   }
 
   if (!user) {
@@ -77,7 +78,7 @@ function HomeRoute() {
   const { user, loading } = useAuth();
 
   if (loading) {
-    return <div className="loading">CONNECTING TO WORKSPACE</div>;
+    return <PageSkeleton page="landing" />;
   }
 
   return user ? <Navigate to="/chat" replace /> : <Landing />;
@@ -85,7 +86,7 @@ function HomeRoute() {
 
 function PageHeader({ onOpenNavigation }: { onOpenNavigation: () => void }) {
   const location = useLocation();
-  const { user } = useAuth();
+  const { user, loading } = useAuth();
 
   const pageMap: Record<string, string> = {
     '/chat': 'ASK SENTINEL',
@@ -107,14 +108,20 @@ function PageHeader({ onOpenNavigation }: { onOpenNavigation: () => void }) {
         <span>{pageTitle}</span>
       </div>
       <div className="topbar-right">
-        <span className="topbar-status">
-          <i /> WORKSPACE ONLINE
-        </span>
+        {loading ? (
+          <span className="topbar-status skeleton-topbar-status" aria-hidden="true"><i className="skeleton-shape" /><span className="skeleton-shape" /></span>
+        ) : (
+          <span className="topbar-status"><i /> WORKSPACE ONLINE</span>
+        )}
         <span className="topbar-divider" />
-        <span className="topbar-account">
-          <span className="tiny-avatar">{user?.email?.[0]?.toUpperCase() || 'S'}</span>
-          <span>{user?.role?.toUpperCase() || 'SIGN IN'}</span>
-        </span>
+        {loading ? (
+          <span className="topbar-account skeleton-topbar-account" aria-hidden="true"><span className="skeleton-shape" /><span className="skeleton-shape" /></span>
+        ) : (
+          <span className="topbar-account">
+            <span className="tiny-avatar">{user?.email?.[0]?.toUpperCase() || 'S'}</span>
+            <span>{user?.role?.toUpperCase() || 'SIGN IN'}</span>
+          </span>
+        )}
       </div>
     </header>
   );
@@ -157,7 +164,7 @@ function AppRoutes() {
       <Route
         path="/chat"
         element={
-          <ProtectedRoute>
+          <ProtectedRoute page="chat">
             <Chat />
           </ProtectedRoute>
         }
@@ -165,7 +172,7 @@ function AppRoutes() {
       <Route
         path="/documents"
         element={
-          <ProtectedRoute>
+          <ProtectedRoute page="documents">
             <Documents />
           </ProtectedRoute>
         }
@@ -173,12 +180,12 @@ function AppRoutes() {
       <Route
         path="/admin"
         element={
-          <AdminRoute>
+          <AdminRoute page="ingestion">
             <Admin />
           </AdminRoute>
         }
       />
-      <Route path="/admin/access" element={<AdminRoute><AccessControl /></AdminRoute>} />
+      <Route path="/admin/access" element={<AdminRoute page="access"><AccessControl /></AdminRoute>} />
     </Routes>
   );
 }
