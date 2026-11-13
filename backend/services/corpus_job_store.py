@@ -22,6 +22,7 @@ _EVENT_FIELDS = (
     "vectors_written",
     "chunk_count",
     "searchable_at",
+    "deduplicated",
 )
 
 

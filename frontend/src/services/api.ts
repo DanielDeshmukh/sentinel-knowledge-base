@@ -102,7 +102,7 @@ export const ingestFile = async (
   formData.append('retrieved_at', metadata.retrievedAt);
   formData.append('reuse_basis', metadata.reuseBasis);
   formData.append('synthetic', String(metadata.synthetic));
-  formData.append('synthetic_label', metadata.syntheticLabel);
+  if (metadata.synthetic) formData.append('synthetic_label', metadata.syntheticLabel);
 
   const token = localStorage.getItem('token');
   const response = await fetch('/api/ingest', {

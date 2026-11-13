@@ -171,7 +171,7 @@ function IngestionPanel() {
       retrievedAt: synthetic ? '' : retrievedAt,
       reuseBasis: reuseBasis.trim(),
       synthetic,
-      syntheticLabel: syntheticLabel.trim(),
+      syntheticLabel: synthetic ? syntheticLabel.trim() : '',
     };
     setIngesting(true);
     setEvents([]);

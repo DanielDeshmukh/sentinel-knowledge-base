@@ -1,11 +1,12 @@
 import io
 import unittest
-from datetime import date
+from datetime import date, datetime
 from unittest.mock import patch
 
 from corpus.parser import CorpusMetadata
 from models.chunk import Chunk, StagingChunk
 from models.corpus_ingestion_job import CorpusIngestionJob
+from models.document import Document
 from services.embedding import EmbeddingServiceUnavailable
 from services.ingestion import process_ingestion
 
@@ -33,7 +34,12 @@ class FakeQuery:
     def first(self):
         if self.model is CorpusIngestionJob:
             return self.db.job
+        if self.model is Document:
+            return self.db.existing_document
         return None
+
+    def with_for_update(self):
+        return self
 
     def delete(self, **_kwargs):
         if self.model is StagingChunk:
@@ -52,6 +58,8 @@ class FakeSession:
         self.rollbacks = 0
         self.fail_on_commit = None
         self.job = type("FakeJob", (), {"id": "job-1", "document_id": None})()
+        self.existing_document = None
+        self.statements = []
 
     def add(self, value):
         if isinstance(value, Chunk):
@@ -79,6 +87,9 @@ class FakeSession:
 
     def query(self, model):
         return FakeQuery(model, self)
+
+    def execute(self, statement, parameters=None):
+        self.statements.append((str(statement), parameters or {}))
 
 
 class CorpusIngestionTests(unittest.TestCase):
@@ -268,6 +279,67 @@ class CorpusIngestionTests(unittest.TestCase):
         self.assertEqual(len(db.chunks), 1)
         self.assertEqual(db.documents[0].sync_state, "searchable")
         self.assertFalse(any(event.get("error_code") == "INGESTION_FAILED" for event in events))
+
+    def test_repeat_of_searchable_content_reuses_existing_document_without_embedding_again(self):
+        from corpus.parser import parse_corpus_record
+
+        parsed = parse_corpus_record(self.content.decode(), self.metadata)
+        existing = type("ExistingDocument", (), {
+            "id": "existing-doc", "content_sha256": parsed.content_sha256,
+            "classification": "public", "sync_state": "searchable",
+            "chunk_count": 1, "vectors_written": 1,
+            "searchable_at": datetime(2026, 11, 13),
+        })()
+        db = FakeSession()
+        db.existing_document = existing
+        events = []
+
+        with patch(
+            "services.ingestion.embedding_service.embed_batch",
+            return_value=[[0.1] * 384],
+        ) as embed:
+            result = process_ingestion(
+                db,
+                FakeUpload("owasp.md", self.content),
+                self.metadata,
+                "admin-1",
+                "job-1",
+                events.append,
+            )
+
+        self.assertEqual(result["status"], "succeeded")
+        self.assertTrue(result["deduplicated"])
+        self.assertEqual(result["document_id"], "existing-doc")
+        self.assertEqual(db.job.document_id, "existing-doc")
+        self.assertEqual(db.documents, [])
+        embed.assert_not_called()
+        self.assertTrue(any("pg_advisory_xact_lock" in sql for sql, _ in db.statements))
+
+    def test_retry_of_failed_content_reuses_and_rebuilds_the_failed_document(self):
+        from corpus.parser import parse_corpus_record
+
+        parsed = parse_corpus_record(self.content.decode(), self.metadata)
+        existing = type("FailedDocument", (), {
+            "id": "failed-doc", "content_sha256": parsed.content_sha256,
+            "classification": "public", "sync_state": "failed",
+            "chunk_count": 0, "vectors_written": 0, "searchable_at": None,
+        })()
+        db = FakeSession()
+        db.existing_document = existing
+        with patch(
+            "services.ingestion.embedding_service.embed_batch",
+            return_value=[[0.1] * 384],
+        ):
+            result = process_ingestion(
+                db, FakeUpload("owasp.md", self.content), self.metadata,
+                "admin-1", "job-1", lambda _event: None,
+            )
+
+        self.assertEqual(result["status"], "succeeded")
+        self.assertEqual(result["document_id"], "failed-doc")
+        self.assertEqual(existing.sync_state, "searchable")
+        self.assertEqual(len(db.chunks), 1)
+        self.assertEqual(db.documents, [])
 
     def test_embedding_and_staging_progress_are_batched_at_one_hundred(self):
         db = FakeSession()

@@ -158,7 +158,7 @@ Commit: `refactor: share corpus parser across validator and ingestion`.
 
 Run from `backend`: `venv\Scripts\python.exe -m unittest tests.test_corpus_jobs tests.test_corpus_schema_upgrade -v`.
 
-- [x] **Step 3: Add nullable columns and a job table.** Add the safe corpus metadata fields, legacy-compatible defaults, sync-state/origin checks, job status/stage checks, progress JSON, and indexes. Content hash remains indexed but not unique until the upload idempotency transaction is implemented in Task 4.
+- [x] **Step 3: Add nullable columns and a job table.** Add the safe corpus metadata fields, legacy-compatible defaults, sync-state/origin checks, job status/stage checks, progress JSON, and indexes. Content hash remains indexed; Task 6 serializes matching ingestion records with a PostgreSQL transaction advisory lock.
 - [x] **Step 4: Extend `upgrade_corpus_schema(connection)` and call it after `Base.metadata.create_all`.** Use `ADD COLUMN IF NOT EXISTS` / `CREATE TABLE IF NOT EXISTS`, an advisory transaction lock, and duplicate-safe constraint creation; no destructive schema operations.
 - [x] **Step 5: Run focused tests and commit.** Full suite passes (57 tests; one test requiring disposable PostgreSQL skipped). Frontend production build passes from the primary checkout because the isolated worktree has no local Node dependencies and Task 3 does not modify frontend files.
 
@@ -238,11 +238,11 @@ Commit: `feat: show live corpus validation and pgvector sync`.
 - Modify `docs/acceptance-checklist.md` if present or create it.
 - Update the design spec only if measured behavior changes a recorded decision.
 
-- [ ] **Step 1: Write an integration test guarded by `TEST_DATABASE_URL` with a disposable PostgreSQL database and pgvector.** Stub only the external embedding call; use the real parser, ingestion service, models, promotion transaction, and retrieval SQL.
-- [ ] **Step 2: Test a public synthetic OWASP Top 10 document.** Stream through `searchable`, then ask a matching question and verify its citation appears for public, internal, restricted, and admin users.
-- [ ] **Step 3: Test a restricted synthetic document.** Verify public/internal receive the generic no-answer and no citation; restricted/admin can retrieve it. Verify direct document access obeys the same classification predicate.
-- [ ] **Step 4: Test failure and idempotency.** Persistent regex failure leaves no document/chunks; embedding failure cleans staging vectors; same normalized content/classification returns the existing document/job without duplicates.
-- [ ] **Step 5: Run corpus and backend checks.**
+- [x] **Step 1: Write an integration test guarded by `TEST_DATABASE_URL` with a disposable PostgreSQL database and pgvector.** Stub only the external embedding call; use the real parser, ingestion service, models, promotion transaction, and retrieval SQL. Four PostgreSQL integration cases are implemented; all were skipped locally because `TEST_DATABASE_URL` is unset.
+- [x] **Step 2: Test an original public OWASP Top 10 summary.** Stream through `searchable`, then ask a matching question and verify its citation appears for public, internal, restricted, and admin users. Public records require source provenance and cannot be marked synthetic. Implemented in the guarded integration test; not run without a disposable DB.
+- [x] **Step 3: Test a restricted synthetic document.** Verify public/internal receive the generic no-answer and no citation; restricted/admin can retrieve it. Verify direct document access obeys the same classification predicate. Implemented in the guarded integration test; not run without a disposable DB.
+- [x] **Step 4: Test failure and idempotency.** Persistent regex failure leaves no document/chunks; embedding failure cleans staging vectors; repeated normalized content/classification reuses the existing searchable document without embedding or duplicate chunks. Unit tests pass; PostgreSQL coverage includes failed-record retry and is skipped locally.
+- [x] **Step 5: Run corpus and backend checks.** 83 backend tests pass (five PostgreSQL-dependent tests skipped); corpus validation and Python compilation pass; frontend production build passes with existing chunk/import warnings.
 
 From `backend`: `venv\Scripts\python.exe -m unittest discover -s tests -v`; `venv\Scripts\python.exe -m corpus.validate`.
 

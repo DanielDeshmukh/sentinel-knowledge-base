@@ -4,6 +4,7 @@ import uuid
 from datetime import datetime, timezone
 from typing import Callable, List, Dict
 from fastapi import UploadFile, HTTPException
+from sqlalchemy import text as sql_text
 from sqlalchemy.orm import Session
 from models.document import Document
 from models.chunk import Chunk, StagingChunk
@@ -203,35 +204,79 @@ def process_ingestion(
         chunks = chunk_text(markdown)
         if not chunks:
             return fail("CORPUS_CONTENT_EMPTY", "No indexable text was found")
-        document = Document(
-            id=str(uuid.uuid4()),
-            title=parsed.metadata.title,
-            classification=parsed.metadata.classification,
-            source=parsed.metadata.source_urls[0] if parsed.metadata.source_urls else None,
-            uploaded_by=uploaded_by_id,
-            origin="admin_upload",
-            markdown_content=markdown,
-            content_sha256=parsed.content_sha256,
-            content_bytes=len(content),
-            media_type=mime_type,
-            source_urls=list(parsed.metadata.source_urls),
-            retrieved_at=parsed.metadata.retrieved_at,
-            reuse_basis=parsed.metadata.reuse_basis,
-            synthetic=parsed.metadata.synthetic,
-            synthetic_label=parsed.metadata.synthetic_label,
-            parser_version=parsed.parser_version,
-            ruleset_version=parsed.ruleset_version,
-            embedding_version=EMBEDDING_VERSION,
-            embedding_dimension=settings.EMBEDDING_DIMENSION,
-            sync_state="validating",
-            chunk_count=len(chunks),
-            vectors_written=0,
-        )
+        db.execute(sql_text("SELECT pg_advisory_xact_lock(hashtext(:corpus_key))"), {
+            "corpus_key": f"{parsed.metadata.classification}:{parsed.content_sha256}",
+        })
         job = db.query(CorpusIngestionJob).filter(CorpusIngestionJob.id == job_id).first()
         if job is None:
             raise RuntimeError("Corpus ingestion job not found")
+        existing = db.query(Document).filter(
+            Document.content_sha256 == parsed.content_sha256,
+            Document.classification == parsed.metadata.classification,
+        ).with_for_update().first()
+        if existing is not None and existing.sync_state == "searchable":
+            job.document_id = existing.id
+            db.commit()
+            production_committed = True
+            emit("chunk", "completed", "Matching corpus content is already stored", document_id=existing.id, chunk_count=existing.chunk_count)
+            emit("embed", "completed", "Reusing committed embeddings", completed=existing.chunk_count, total=existing.chunk_count)
+            emit("stage_vectors", "completed", "Committed vectors are already available", completed=existing.vectors_written, total=existing.chunk_count, vectors_written=existing.vectors_written)
+            emit("promote", "completed", "Existing vectors are already in the production index", committed_chunks=existing.vectors_written)
+            emit(
+                "searchable", "completed", "Document is searchable in role-authorized chat",
+                document_id=existing.id, chunk_count=existing.chunk_count,
+                vectors_written=existing.vectors_written, completed=existing.chunk_count,
+                total=existing.chunk_count,
+                searchable_at=existing.searchable_at.isoformat() if existing.searchable_at else None,
+                deduplicated=True, terminal=True,
+            )
+            return {
+                "document_id": existing.id,
+                "stages": stages,
+                "total_time_ms": (time.perf_counter() - started_at) * 1000,
+                "status": "succeeded",
+                "deduplicated": True,
+            }
+        if existing is not None and existing.sync_state != "failed":
+            job.document_id = existing.id
+            db.commit()
+            return fail("CONTENT_ALREADY_SYNCING", "Matching corpus content is already being synchronized")
+
+        document_values = {
+            "title": parsed.metadata.title,
+            "classification": parsed.metadata.classification,
+            "source": parsed.metadata.source_urls[0] if parsed.metadata.source_urls else None,
+            "uploaded_by": uploaded_by_id,
+            "origin": "admin_upload",
+            "markdown_content": markdown,
+            "content_sha256": parsed.content_sha256,
+            "content_bytes": len(content),
+            "media_type": mime_type,
+            "source_urls": list(parsed.metadata.source_urls),
+            "retrieved_at": parsed.metadata.retrieved_at,
+            "reuse_basis": parsed.metadata.reuse_basis,
+            "synthetic": parsed.metadata.synthetic,
+            "synthetic_label": parsed.metadata.synthetic_label,
+            "parser_version": parsed.parser_version,
+            "ruleset_version": parsed.ruleset_version,
+            "embedding_version": EMBEDDING_VERSION,
+            "embedding_dimension": settings.EMBEDDING_DIMENSION,
+            "sync_state": "validating",
+            "chunk_count": len(chunks),
+            "vectors_written": 0,
+            "searchable_at": None,
+            "updated_at": datetime.now(timezone.utc).replace(tzinfo=None),
+        }
+        if existing is not None:
+            db.query(Chunk).filter(Chunk.document_id == existing.id).delete(synchronize_session=False)
+            db.query(StagingChunk).filter(StagingChunk.document_id == existing.id).delete(synchronize_session=False)
+            document = existing
+            for field, value in document_values.items():
+                setattr(document, field, value)
+        else:
+            document = Document(id=str(uuid.uuid4()), **document_values)
+            db.add(document)
         job.document_id = document.id
-        db.add(document)
         db.commit()
         emit(
             "chunk", "completed", "Document chunks are ready",

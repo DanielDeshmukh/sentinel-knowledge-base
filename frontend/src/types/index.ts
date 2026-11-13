@@ -60,6 +60,7 @@ export interface IngestionStage {
   terminal?: boolean;
   searchable_at?: string;
   document_id?: string;
+  deduplicated?: boolean;
 }
 
 export type CorpusStage =
