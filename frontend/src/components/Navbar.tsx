@@ -14,7 +14,8 @@ const Navbar: React.FC<NavbarProps> = ({ mobileMenuOpen, onCloseMobileMenu }) =>
 
   const handleLogout = () => {
     logout();
-    navigate('/login');
+    navigate('/login', { replace: true });
+    onCloseMobileMenu();
   };
 
   if (!user) return null;
@@ -122,13 +123,13 @@ const Navbar: React.FC<NavbarProps> = ({ mobileMenuOpen, onCloseMobileMenu }) =>
           </div>
         </div>
 
-        <button className="profile-button" onClick={handleLogout}>
-          <div className="avatar">{user.email[0].toUpperCase()}</div>
-          <div className="profile-copy">
-            <strong>{user.email}</strong>
-            <span>{user.role.toUpperCase()} ACCESS</span>
-          </div>
-          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M6 9l6 6 6-6"/></svg>
+        <button className="sidebar-logout" type="button" onClick={handleLogout} aria-label="Log out of Sentinel">
+          <span>Log out</span>
+          <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+            <path d="M10 17l5-5-5-5" />
+            <path d="M15 12H3" />
+            <path d="M12 3h7a2 2 0 012 2v14a2 2 0 01-2 2h-7" />
+          </svg>
         </button>
 
         <div className="sidebar-bottom">

@@ -2045,21 +2045,29 @@ input:focus, textarea:focus, select:focus {
   margin-right: 5px;
 }
 
-/* ============ Profile Button ============ */
+/* ============ Sidebar Logout ============ */
 
-.profile-button {
+.sidebar-logout {
+  width: 100%;
   margin-top: 16px;
-  padding: 14px 3px;
+  padding: 14px 5px;
   border: 0;
   border-top: 1px solid #292929;
   background: none;
   display: flex;
   align-items: center;
-  gap: 10px;
-  color: #868686;
+  justify-content: space-between;
+  color: #a9b7ac;
+  cursor: pointer;
+  font: 500 12px var(--sans);
+  text-align: left;
+  transition: color .15s ease, background-color .15s ease;
 }
 
-.avatar, .tiny-avatar {
+.sidebar-logout:hover { color: var(--white); }
+.sidebar-logout:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
+
+.tiny-avatar {
   background: #343434;
   color: #f4f4f0;
   border: 1px solid #4a4a4a;
@@ -2069,41 +2077,10 @@ input:focus, textarea:focus, select:focus {
   font-weight: 600;
 }
 
-.avatar {
-  width: 34px;
-  height: 34px;
-  font-size: 11px;
-}
-
 .tiny-avatar {
   width: 25px;
   height: 25px;
   font-size: 10px;
-}
-
-.profile-copy {
-  display: flex;
-  flex-direction: column;
-  flex: 1;
-  min-width: 0;
-  text-align: left;
-}
-
-.profile-copy strong {
-  color: #e4e4e1;
-  font-size: 11px;
-  font-weight: 600;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.profile-copy span {
-  color: #6e6e6e;
-  font: 500 8px var(--mono);
-  letter-spacing: .05em;
-  margin-top: 5px;
-  white-space: nowrap;
 }
 
 .topbar-account {
@@ -2343,7 +2320,7 @@ input:focus, textarea:focus, select:focus {
   border-radius: 12px;
 }
 
-.security-icon, .avatar, .tiny-avatar {
+.security-icon, .tiny-avatar {
   border-color: rgba(178, 204, 184, .16);
   background: #223027;
   border-radius: 9px;
@@ -2397,7 +2374,7 @@ input:focus, textarea:focus, select:focus {
 
 .file-icon, .row-icon, .search-box, .prompt-card, .source-link,
 .mini-status, .pipeline-alert, .step-indicator, .progress-track,
-.profile-button {
+.sidebar-logout {
   border-color: rgba(178, 204, 184, .14);
   border-radius: 9px;
 }
