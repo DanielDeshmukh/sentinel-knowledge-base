@@ -36,6 +36,7 @@ Thumbs.db
 
 # Specs are ignored by default; track this approved design spec
 *.md
+!README.md
 !docs/superpowers/specs/2026-11-12-landing-auth-design.md
 !docs/superpowers/specs/2026-11-13-corpus-design.md
 !backend/corpus/**/*.md
