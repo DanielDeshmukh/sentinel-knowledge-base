@@ -7,7 +7,14 @@
     },
     "frontend": {
       "root": "frontend",
-      "framework": "vite"
+      "framework": "vite",
+      "rewrites": [
+        { "source": "/login", "destination": "/index.html" },
+        { "source": "/chat", "destination": "/index.html" },
+        { "source": "/documents", "destination": "/index.html" },
+        { "source": "/admin", "destination": "/index.html" },
+        { "source": "/admin/access", "destination": "/index.html" }
+      ]
     }
   },
   "rewrites": [
@@ -15,41 +22,6 @@
       "source": "/api/(.*)",
       "destination": {
         "service": "backend"
-      }
-    },
-    {
-      "source": "/login",
-      "destination": {
-        "service": "frontend",
-        "path": "/index.html"
-      }
-    },
-    {
-      "source": "/chat",
-      "destination": {
-        "service": "frontend",
-        "path": "/index.html"
-      }
-    },
-    {
-      "source": "/documents",
-      "destination": {
-        "service": "frontend",
-        "path": "/index.html"
-      }
-    },
-    {
-      "source": "/admin",
-      "destination": {
-        "service": "frontend",
-        "path": "/index.html"
-      }
-    },
-    {
-      "source": "/admin/access",
-      "destination": {
-        "service": "frontend",
-        "path": "/index.html"
       }
     },
     {

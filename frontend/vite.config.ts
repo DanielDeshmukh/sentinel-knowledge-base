@@ -8,6 +8,7 @@ export default defineConfig({
     VitePWA({
       registerType: 'autoUpdate',
       injectRegister: false,
+      selfDestroying: true,
       includeAssets: ['favicon.ico', 'robots.txt'],
       manifest: {
         name: 'Sentinel Knowledge Base',

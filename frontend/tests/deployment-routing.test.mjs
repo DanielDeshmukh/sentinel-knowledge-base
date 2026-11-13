@@ -10,8 +10,8 @@ test('deep links for every React route resolve to the SPA entry point', () => {
   const paths = ['/login', '/chat', '/documents', '/admin', '/admin/access'];
 
   for (const path of paths) {
-    const route = config.rewrites.find((item) => item.source === path);
-    assert.deepEqual(route?.destination, { service: 'frontend', path: '/index.html' }, `${path} should load index.html on direct visits`);
+    const route = config.services.frontend.rewrites.find((item) => item.source === path);
+    assert.equal(route?.destination, '/index.html', `${path} should load index.html on direct visits`);
   }
 });
 
