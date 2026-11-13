@@ -60,6 +60,7 @@ class RetrievalTests(unittest.TestCase):
         self.assertEqual(db.parameters["top_k"], 1)
         self.assertEqual(db.parameters["threshold"], 0.5)
         self.assertIn(":user_role = ANY(c.allowed_roles)", str(db.statement))
+        self.assertIn("d.sync_state = 'searchable'", str(db.statement))
         self.assertIn("1 - (c.embedding <=> CAST(:embedding AS vector(384)))", str(db.statement))
         self.assertIn("ORDER BY c.embedding <=> CAST(:embedding AS vector(384))", str(db.statement))
         self.assertIn("LIMIT :top_k", str(db.statement))

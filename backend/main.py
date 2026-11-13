@@ -1,7 +1,10 @@
+import asyncio
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from core.database import engine, Base
+from core.database import engine, Base, SessionLocal
 from api.routes import router
+from services.corpus_job_store import CorpusJobStore
 from init_db import (
     ensure_pgvector_extension,
     upgrade_corpus_schema,
@@ -35,6 +38,18 @@ app.add_middleware(
 
 # Mount API routes
 app.include_router(router, prefix="/api")
+
+
+@app.on_event("startup")
+async def recover_abandoned_corpus_jobs():
+    def recover():
+        db = SessionLocal()
+        try:
+            CorpusJobStore.recover_stale_jobs(db)
+        finally:
+            db.close()
+
+    await asyncio.to_thread(recover)
 
 
 @app.get("/health")

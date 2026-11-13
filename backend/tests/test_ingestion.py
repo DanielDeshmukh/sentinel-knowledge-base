@@ -5,6 +5,7 @@ from unittest.mock import patch
 
 from corpus.parser import CorpusMetadata
 from models.chunk import Chunk, StagingChunk
+from models.corpus_ingestion_job import CorpusIngestionJob
 from services.embedding import EmbeddingServiceUnavailable
 from services.ingestion import process_ingestion
 
@@ -29,6 +30,11 @@ class FakeQuery:
             return list(self.db.staging_chunks)
         return []
 
+    def first(self):
+        if self.model is CorpusIngestionJob:
+            return self.db.job
+        return None
+
     def delete(self, **_kwargs):
         if self.model is StagingChunk:
             count = len(self.db.staging_chunks)
@@ -45,6 +51,7 @@ class FakeSession:
         self.commits = 0
         self.rollbacks = 0
         self.fail_on_commit = None
+        self.job = type("FakeJob", (), {"id": "job-1", "document_id": None})()
 
     def add(self, value):
         if isinstance(value, Chunk):
@@ -120,6 +127,7 @@ class CorpusIngestionTests(unittest.TestCase):
         self.assertEqual(len(db.chunks), 1)
         self.assertEqual(db.staging_chunks, [])
         self.assertEqual(db.documents[0].sync_state, "searchable")
+        self.assertEqual(db.job.document_id, db.documents[0].id)
         self.assertEqual(db.documents[0].origin, "admin_upload")
         self.assertEqual(db.chunks[0].allowed_roles, ["public", "internal", "restricted", "admin"])
         stage_events = [event for event in events if event["stage"] == "stage_vectors"]
@@ -233,6 +241,33 @@ class CorpusIngestionTests(unittest.TestCase):
         self.assertEqual(db.staging_chunks, [])
         self.assertEqual(db.documents[0].sync_state, "failed")
         self.assertNotIn("searchable", [event["stage"] for event in events])
+
+    def test_progress_store_failure_after_promotion_does_not_turn_searchable_document_into_failed(self):
+        db = FakeSession()
+        events = []
+
+        def fail_on_promote_completion(event):
+            events.append(event)
+            if event["stage"] == "promote" and event["status"] == "completed":
+                raise RuntimeError("job progress store unavailable")
+
+        with patch(
+            "services.ingestion.embedding_service.embed_batch",
+            return_value=[[0.1] * 384],
+        ):
+            result = process_ingestion(
+                db,
+                FakeUpload("owasp.md", self.content),
+                self.metadata,
+                "admin-1",
+                "job-1",
+                fail_on_promote_completion,
+            )
+
+        self.assertEqual(result["status"], "succeeded")
+        self.assertEqual(len(db.chunks), 1)
+        self.assertEqual(db.documents[0].sync_state, "searchable")
+        self.assertFalse(any(event.get("error_code") == "INGESTION_FAILED" for event in events))
 
     def test_embedding_and_staging_progress_are_batched_at_one_hundred(self):
         db = FakeSession()

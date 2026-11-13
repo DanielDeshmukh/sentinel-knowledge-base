@@ -7,6 +7,7 @@ from fastapi import UploadFile, HTTPException
 from sqlalchemy.orm import Session
 from models.document import Document
 from models.chunk import Chunk, StagingChunk
+from models.corpus_ingestion_job import CorpusIngestionJob
 from services.auth import get_allowed_roles
 from corpus.parser import CorpusMetadata, parse_corpus_record
 from services.embedding import (
@@ -69,6 +70,7 @@ def process_ingestion(
     max_size = settings.MAX_UPLOAD_SIZE_MB * 1024 * 1024
     stages: List[Dict] = []
     document: Document | None = None
+    production_committed = False
 
     def emit(stage: str, status: str, message: str, **details) -> None:
         event = {
@@ -79,9 +81,33 @@ def process_ingestion(
         }
         event.update(details)
         stages.append({key: value for key, value in event.items() if value is not None})
-        on_progress(event)
+        try:
+            on_progress(event)
+        except Exception:
+            # Once promotion commits, progress delivery must not reverse durable
+            # searchable state or strand committed production chunks as failed.
+            if not production_committed:
+                raise
 
     def fail(code: str, message: str, diagnostics: list[dict] | None = None) -> Dict:
+        if production_committed:
+            total_time = (time.perf_counter() - started_at) * 1000
+            try:
+                emit(
+                    "searchable", "completed",
+                    "Document is searchable in role-authorized chat",
+                    document_id=document.id if document else None,
+                    terminal=True,
+                    timing_ms=total_time,
+                )
+            except Exception:
+                pass
+            return {
+                "document_id": document.id if document else None,
+                "stages": stages,
+                "total_time_ms": total_time,
+                "status": "succeeded",
+            }
         db.rollback()
         if document is not None:
             try:
@@ -201,6 +227,10 @@ def process_ingestion(
             chunk_count=len(chunks),
             vectors_written=0,
         )
+        job = db.query(CorpusIngestionJob).filter(CorpusIngestionJob.id == job_id).first()
+        if job is None:
+            raise RuntimeError("Corpus ingestion job not found")
+        job.document_id = document.id
         db.add(document)
         db.commit()
         emit(
@@ -281,6 +311,7 @@ def process_ingestion(
         document.searchable_at = datetime.now(timezone.utc).replace(tzinfo=None)
         document.updated_at = document.searchable_at
         db.commit()
+        production_committed = True
         emit(
             "promote", "completed", "Vectors committed to the production index",
             timing_ms=(time.perf_counter() - stage_start) * 1000,

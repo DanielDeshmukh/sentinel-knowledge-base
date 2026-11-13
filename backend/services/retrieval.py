@@ -26,6 +26,7 @@ def retrieve_chunks(db: Session, question: str, user: User, top_k: int = None) -
         FROM chunks c
         JOIN documents d ON c.document_id = d.id
         WHERE :user_role = ANY(c.allowed_roles)
+          AND d.sync_state = 'searchable'
           AND 1 - (c.embedding <=> CAST(:embedding AS {vector_type})) >= :threshold
         ORDER BY c.embedding <=> CAST(:embedding AS {vector_type})
         LIMIT :top_k

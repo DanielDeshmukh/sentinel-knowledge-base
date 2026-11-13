@@ -1,4 +1,5 @@
 import asyncio
+import io
 import json
 import queue
 import threading
@@ -8,7 +9,8 @@ from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Form
 from fastapi.responses import StreamingResponse
 from sqlalchemy.orm import Session
 from typing import List
-from core.database import get_db
+from core.database import get_db, SessionLocal
+from core.config import settings
 from models.user import User
 from models.document import Document
 from models.chunk import Chunk, StagingChunk
@@ -108,7 +110,17 @@ async def list_documents(user: User = Depends(get_current_user), db: Session = D
 
 @router.get("/documents/{doc_id}", response_model=DocumentResponse)
 async def get_document(doc_id: str, user: User = Depends(get_current_user), db: Session = Depends(get_db)):
-    doc = db.query(Document).filter(Document.id == doc_id).first()
+    visible_classifications = {
+        "admin": ["public", "internal", "restricted"],
+        "restricted": ["public", "internal", "restricted"],
+        "internal": ["public", "internal"],
+        "public": ["public"],
+    }.get(user.role, ["public"])
+    doc = db.query(Document).filter(
+        Document.id == doc_id,
+        Document.sync_state == "searchable",
+        Document.classification.in_(visible_classifications),
+    ).first()
     if not doc:
         raise HTTPException(status_code=404, detail="Document not found")
     return doc
@@ -139,7 +151,6 @@ async def ingest(
     synthetic: bool = Form(False),
     synthetic_label: str = Form(""),
     user: User = Depends(require_admin),
-    db: Session = Depends(get_db)
 ):
     try:
         parsed_sources = json.loads(source_urls or "[]")
@@ -152,6 +163,13 @@ async def ingest(
     except ValueError:
         retrieved_date = None
 
+    upload_bytes = await file.read(settings.MAX_UPLOAD_SIZE_MB * 1024 * 1024 + 1)
+    worker_file = UploadFile(
+        filename=file.filename,
+        file=io.BytesIO(upload_bytes),
+        headers=file.headers,
+    )
+
     metadata = CorpusMetadata(
         title=title,
         classification=classification,
@@ -163,22 +181,32 @@ async def ingest(
     )
     job = corpus_job_store.create(user.id, file.filename or "upload")
     event_queue: queue.Queue = queue.Queue()
+    heartbeat_stop = threading.Event()
+
+    def keep_worker_lease() -> None:
+        while not heartbeat_stop.wait(30):
+            try:
+                corpus_job_store.touch(job["id"])
+            except Exception:
+                # The next successful progress event refreshes the same lease.
+                continue
 
     def publish_progress(payload: dict) -> None:
         event_queue.put(corpus_job_store.record_progress(job["id"], payload))
 
     def run_worker() -> None:
+        worker_db = SessionLocal()
         try:
             process_ingestion(
-                db,
-                file,
+                worker_db,
+                worker_file,
                 metadata,
                 user.id,
                 job["id"],
                 publish_progress,
             )
         except Exception:
-            db.rollback()
+            worker_db.rollback()
             try:
                 publish_progress({
                     "stage": "failed",
@@ -187,13 +215,18 @@ async def ingest(
                     "error_code": "INGESTION_FAILED",
                     "terminal": True,
                 })
-            finally:
-                event_queue.put(None)
-        else:
+            except Exception:
+                pass
+        finally:
+            worker_db.close()
+            worker_file.file.close()
+            heartbeat_stop.set()
             event_queue.put(None)
 
     async def event_stream():
+        heartbeat = threading.Thread(target=keep_worker_lease, name=f"corpus-heartbeat-{job['id']}", daemon=True)
         worker = threading.Thread(target=run_worker, name=f"corpus-ingest-{job['id']}", daemon=True)
+        heartbeat.start()
         worker.start()
         try:
             while True:
@@ -207,6 +240,8 @@ async def ingest(
                 event_id = event.get("sequence", "")
                 yield f"id: {event_id}\nevent: progress\ndata: {json.dumps(event, separators=(',', ':'))}\n\n"
         finally:
+            # The job continues independently of the SSE client. Its lease and
+            # DB/upload resources stay alive until the worker finishes.
             worker.join(timeout=1)
 
     return StreamingResponse(
@@ -226,6 +261,7 @@ async def get_corpus_job_status(
     user: User = Depends(require_admin),
     db: Session = Depends(get_db),
 ):
+    corpus_job_store.recover_stale_jobs(db, job_id=job_id, admin_id=user.id)
     job = db.query(CorpusIngestionJob).filter(
         CorpusIngestionJob.id == job_id,
         CorpusIngestionJob.admin_id == user.id,

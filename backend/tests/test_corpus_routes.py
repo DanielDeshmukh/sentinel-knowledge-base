@@ -9,7 +9,7 @@ from fastapi.responses import StreamingResponse
 from starlette.datastructures import Headers
 from starlette.datastructures import UploadFile
 
-from api.routes import get_corpus_job_status, ingest, list_documents
+from api.routes import get_corpus_job_status, get_document, ingest, list_documents
 
 
 class EmptyQuery:
@@ -22,6 +22,9 @@ class EmptyQuery:
 
     def first(self):
         return None
+
+    def with_for_update(self):
+        return self
 
     def all(self):
         return []
@@ -49,6 +52,7 @@ class CorpusRouteTests(unittest.IsolatedAsyncioTestCase):
             headers=Headers({"content-type": "text/markdown"}),
         )
         recorded = []
+        worker_uploads = []
 
         def record(_job_id, payload):
             recorded.append(payload)
@@ -58,7 +62,10 @@ class CorpusRouteTests(unittest.IsolatedAsyncioTestCase):
                 **payload,
             }
 
-        def fake_process(_db, _file, metadata, uploaded_by, job_id, callback):
+        def fake_process(_db, worker_file, metadata, uploaded_by, job_id, callback):
+            worker_uploads.append(worker_file)
+            self.assertIsNot(worker_file, upload)
+            self.assertEqual(worker_file.file.read(), b"# OWASP Top 10\n\nSummary")
             self.assertEqual(metadata.source_urls, ("https://owasp.org/top-ten/",))
             self.assertEqual(metadata.retrieved_at.isoformat(), "2026-11-13")
             self.assertEqual(uploaded_by, "admin-1")
@@ -84,7 +91,6 @@ class CorpusRouteTests(unittest.IsolatedAsyncioTestCase):
                 False,
                 "",
                 user,
-                db,
             )
             body = "".join([
                 part.decode() if isinstance(part, bytes) else part
@@ -97,6 +103,7 @@ class CorpusRouteTests(unittest.IsolatedAsyncioTestCase):
         self.assertIn("id: 1\nevent: progress", body)
         self.assertIn('"stage":"searchable"', body)
         self.assertLess(body.index('"sequence":1'), body.index('"sequence":2'))
+        self.assertTrue(worker_uploads[0].file.closed)
 
     async def test_ingestion_job_status_hides_jobs_owned_by_another_admin(self):
         db = FakeDb()
@@ -122,6 +129,16 @@ class CorpusRouteTests(unittest.IsolatedAsyncioTestCase):
             and criteria.right.value == "searchable"
             for criteria in db.last_query.criteria
         ))
+
+    async def test_document_detail_query_enforces_role_classification_and_searchable_state(self):
+        db = FakeDb()
+        with self.assertRaises(HTTPException) as raised:
+            await get_document("secret-doc", SimpleNamespace(id="public-1", role="public"), db)
+
+        self.assertEqual(raised.exception.status_code, 404)
+        criteria = [str(item) for item in db.last_query.criteria]
+        self.assertTrue(any("documents.sync_state" in item for item in criteria))
+        self.assertTrue(any("documents.classification" in item for item in criteria))
 
 
 if __name__ == "__main__":

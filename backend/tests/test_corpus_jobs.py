@@ -1,8 +1,51 @@
 import unittest
+from datetime import datetime, timedelta
 from types import SimpleNamespace
 from unittest.mock import patch
 
 from services.corpus_job_store import CorpusJobStore
+from models.chunk import StagingChunk
+from models.corpus_ingestion_job import CorpusIngestionJob
+
+
+class RecoveryQuery:
+    def __init__(self, items=None):
+        self.items = items or []
+        self.deleted = False
+
+    def filter(self, *_criteria):
+        return self
+
+    def with_for_update(self):
+        return self
+
+    def all(self):
+        return self.items
+
+    def delete(self, **_kwargs):
+        self.deleted = True
+        return 1
+
+
+class RecoverySession:
+    def __init__(self, job, document):
+        self.job = job
+        self.document = document
+        self.staging_query = RecoveryQuery()
+        self.commits = 0
+
+    def query(self, model):
+        if model is CorpusIngestionJob:
+            return RecoveryQuery([self.job])
+        if model is StagingChunk:
+            return self.staging_query
+        raise AssertionError(f"Unexpected model: {model}")
+
+    def get(self, _model, _identifier):
+        return self.document
+
+    def commit(self):
+        self.commits += 1
 
 
 class FakeQuery:
@@ -113,6 +156,70 @@ class CorpusJobStoreTests(unittest.TestCase):
 
         self.assertEqual(self.job.status, "succeeded")
         self.assertIsNotNone(self.job.finished_at)
+
+    def test_touch_refreshes_running_job_lease_without_incrementing_sequence(self):
+        self.job.sequence = 3
+        with patch("services.corpus_job_store.SessionLocal", return_value=self.session):
+            self.store.touch("job-1")
+
+        self.assertIsNotNone(self.job.updated_at)
+        self.assertEqual(self.job.sequence, 3)
+        self.assertEqual(self.session.commits, 1)
+        self.assertTrue(self.session.closed)
+
+    def test_terminal_job_rejects_late_worker_progress(self):
+        self.job.status = "failed"
+        with patch("services.corpus_job_store.SessionLocal", return_value=self.session):
+            with self.assertRaisesRegex(RuntimeError, "already terminal"):
+                self.store.record_progress("job-1", {
+                    "stage": "embed", "status": "running", "message": "late event",
+                })
+
+        self.assertEqual(self.job.sequence, 0)
+        self.assertEqual(self.session.commits, 0)
+        self.assertTrue(self.session.closed)
+
+    def test_stale_worker_recovery_fails_document_and_removes_staging(self):
+        now = datetime(2026, 11, 13, 12, 0)
+        job = SimpleNamespace(
+            id="job-stale", document_id="doc-1", status="running", stage="embed",
+            sequence=4, progress={"completed": 1}, updated_at=now - timedelta(minutes=6),
+            finished_at=None, error_code=None,
+        )
+        document = SimpleNamespace(id="doc-1", sync_state="staging", updated_at=None)
+        db = RecoverySession(job, document)
+
+        recovered = CorpusJobStore.recover_stale_jobs(db, now=now)
+
+        self.assertEqual(recovered, 1)
+        self.assertEqual(job.status, "failed")
+        self.assertEqual(job.stage, "failed")
+        self.assertEqual(job.error_code, "WORKER_INTERRUPTED")
+        self.assertEqual(job.sequence, 5)
+        self.assertEqual(document.sync_state, "failed")
+        self.assertTrue(db.staging_query.deleted)
+        self.assertEqual(db.commits, 1)
+
+    def test_stale_job_with_committed_searchable_document_recovers_as_success(self):
+        now = datetime(2026, 11, 13, 12, 0)
+        job = SimpleNamespace(
+            id="job-stale", document_id="doc-1", status="running", stage="promote",
+            sequence=4, progress={}, updated_at=now - timedelta(minutes=6),
+            finished_at=None, error_code=None,
+        )
+        document = SimpleNamespace(
+            id="doc-1", sync_state="searchable", chunk_count=3,
+            vectors_written=3, searchable_at=now - timedelta(minutes=5), updated_at=None,
+        )
+        db = RecoverySession(job, document)
+
+        recovered = CorpusJobStore.recover_stale_jobs(db, now=now)
+
+        self.assertEqual(recovered, 1)
+        self.assertEqual(job.status, "succeeded")
+        self.assertEqual(job.stage, "searchable")
+        self.assertEqual(job.progress["chunk_count"], 3)
+        self.assertIsNone(job.error_code)
 
 
 if __name__ == "__main__":
