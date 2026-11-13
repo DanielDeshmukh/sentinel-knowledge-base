@@ -7,7 +7,7 @@ interface AuthContextType {
   user: User | null;
   loading: boolean;
   login: (email: string, password: string) => Promise<void>;
-  register: (displayName: string, email: string, password: string) => Promise<void>;
+  register: (displayName: string, email: string, password: string, requestedRole: 'public' | 'internal' | 'restricted') => Promise<void>;
   logout: () => void;
 }
 
@@ -48,9 +48,9 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     }
   };
 
-  const register = async (displayName: string, email: string, password: string) => {
+  const register = async (displayName: string, email: string, password: string, requestedRole: 'public' | 'internal' | 'restricted') => {
     const { register: apiRegister } = await import('../services/api');
-    await apiRegister(displayName, email, password);
+    await apiRegister(displayName, email, password, requestedRole);
     if (!(await loadUser())) {
       throw new Error('Your account was created, but the user session could not be loaded. Please sign in.');
     }

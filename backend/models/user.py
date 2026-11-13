@@ -13,6 +13,8 @@ class User(Base):
     email = Column(String, unique=True, index=True, nullable=False)
     password_hash = Column(String, nullable=False)
     role = Column(String, nullable=False, default="public")
+    requested_role = Column(String, nullable=True)
+    role_request_status = Column(String, nullable=False, default="none")
     approved = Column(Boolean, default=True)
     created_at = Column(DateTime, default=datetime.utcnow)
 

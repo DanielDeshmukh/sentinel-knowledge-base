@@ -21,6 +21,10 @@ def ensure_pgvector_extension(connection: Connection) -> None:
 
 
 def upgrade_user_schema(connection: Connection) -> None:
+    connection.execute(text("ALTER TABLE users ADD COLUMN IF NOT EXISTS requested_role VARCHAR"))
+    connection.execute(text(
+        "ALTER TABLE users ADD COLUMN IF NOT EXISTS role_request_status VARCHAR NOT NULL DEFAULT 'none'"
+    ))
     connection.execute(text(
         "ALTER TABLE users ADD COLUMN IF NOT EXISTS display_name VARCHAR"
     ))

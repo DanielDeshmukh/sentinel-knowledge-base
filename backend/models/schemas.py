@@ -8,6 +8,14 @@ class UserCreate(BaseModel):
     display_name: str
     email: str
     password: str
+    requested_role: str = "public"
+
+    @field_validator("requested_role")
+    @classmethod
+    def validate_requested_role(cls, value: str) -> str:
+        if value not in {"public", "internal", "restricted"}:
+            raise ValueError("Requested role must be public, internal, or restricted")
+        return value
 
     @field_validator("display_name")
     @classmethod
@@ -33,6 +41,8 @@ class UserResponse(BaseModel):
     display_name: str
     email: str
     role: str
+    requested_role: Optional[str] = None
+    role_request_status: str = "none"
     approved: bool
     created_at: datetime
 
@@ -138,3 +148,10 @@ class CorpusJobStatusResponse(BaseModel):
 # Admin
 class RoleUpdate(BaseModel):
     role: str
+
+    @field_validator("role")
+    @classmethod
+    def validate_role(cls, value: str) -> str:
+        if value not in {"public", "internal", "restricted", "admin"}:
+            raise ValueError("Role must be public, internal, restricted, or admin")
+        return value

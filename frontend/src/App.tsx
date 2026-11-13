@@ -7,6 +7,7 @@ import Login from './pages/Login';
 import Chat from './pages/Chat';
 import Documents from './pages/Documents';
 import Admin from './pages/Admin';
+import AccessControl from './pages/AccessControl';
 import Navbar from './components/Navbar';
 import Landing from './pages/Landing';
 
@@ -171,6 +172,7 @@ function AppRoutes() {
           </AdminRoute>
         }
       />
+      <Route path="/admin/access" element={<AdminRoute><AccessControl /></AdminRoute>} />
     </Routes>
   );
 }

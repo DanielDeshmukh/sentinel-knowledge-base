@@ -29,11 +29,12 @@ api.interceptors.request.use((config) => {
 });
 
 // Auth
-export const register = async (displayName: string, email: string, password: string) => {
+export const register = async (displayName: string, email: string, password: string, requestedRole: 'public' | 'internal' | 'restricted') => {
   const response = await api.post<TokenResponse>('/auth/register', {
     display_name: displayName,
     email,
     password,
+    requested_role: requestedRole,
   });
   if (response.data.access_token) {
     localStorage.setItem('token', response.data.access_token);
@@ -169,7 +170,17 @@ export const getUsers = async () => {
 };
 
 export const updateUserRole = async (userId: string, role: RoleUpdate) => {
-  const response = await api.put<User>(`/admin/users/${userId}/role`, role);
+  const response = await api.patch<User>(`/admin/users/${userId}`, role);
+  return response.data;
+};
+
+export const getAccessRequests = async () => {
+  const response = await api.get<User[]>('/admin/access/requests');
+  return response.data;
+};
+
+export const reviewAccessRequest = async (userId: string, role: RoleUpdate['role']) => {
+  const response = await api.patch<User>(`/admin/access/requests/${userId}`, { role });
   return response.data;
 };
 

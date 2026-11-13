@@ -46,7 +46,9 @@ async def register(user_data: UserCreate, db: Session = Depends(get_db)):
         email=user_data.email,
         password_hash=hash_password(user_data.password),
         role="public",
-        approved=True
+        approved=True,
+        requested_role=user_data.requested_role,
+        role_request_status="pending",
     )
     db.add(user)
     db.commit()
@@ -278,12 +280,33 @@ async def list_users(user: User = Depends(require_admin), db: Session = Depends(
     return db.query(User).all()
 
 
+@router.get("/admin/access/requests", response_model=List[UserResponse])
+async def list_access_requests(user: User = Depends(require_admin), db: Session = Depends(get_db)):
+    return db.query(User).filter(User.role_request_status == "pending").order_by(User.created_at.desc()).all()
+
+
+@router.patch("/admin/access/requests/{user_id}", response_model=UserResponse)
+async def review_access_request(user_id: str, update: RoleUpdate, user: User = Depends(require_admin), db: Session = Depends(get_db)):
+    if update.role == "admin":
+        raise HTTPException(status_code=422, detail="Access requests can only be assigned public, internal, or restricted roles")
+    target = db.query(User).filter(User.id == user_id, User.role_request_status == "pending").first()
+    if not target:
+        raise HTTPException(status_code=404, detail="Pending access request not found")
+    target.role = update.role
+    target.role_request_status = "reviewed"
+    db.commit()
+    db.refresh(target)
+    return target
+
+
 @router.patch("/admin/users/{user_id}")
 async def update_user_role(user_id: str, update: RoleUpdate, user: User = Depends(require_admin), db: Session = Depends(get_db)):
     target = db.query(User).filter(User.id == user_id).first()
     if not target:
         raise HTTPException(status_code=404, detail="User not found")
     target.role = update.role
+    if target.role_request_status == "pending":
+        target.role_request_status = "reviewed"
     db.commit()
     db.refresh(target)
     return target

@@ -3,6 +3,8 @@ export interface User {
   display_name: string;
   email: string;
   role: 'public' | 'internal' | 'restricted' | 'admin';
+  requested_role?: 'public' | 'internal' | 'restricted' | null;
+  role_request_status?: 'none' | 'pending' | 'reviewed';
   approved: boolean;
   created_at: string;
 }

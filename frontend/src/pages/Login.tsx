@@ -3,6 +3,7 @@ import { useAuth } from '../context/AuthContext';
 import toast from 'react-hot-toast';
 import { FiEye, FiEyeOff } from 'react-icons/fi';
 import { useSearchParams } from 'react-router-dom';
+import RoleDropdown, { type AssignableRole } from '../components/RoleDropdown';
 
 const Login: React.FC = () => {
   const { login, register } = useAuth();
@@ -11,6 +12,7 @@ const Login: React.FC = () => {
   const [displayName, setDisplayName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [requestedRole, setRequestedRole] = useState<AssignableRole>('public');
   const [passwordVisible, setPasswordVisible] = useState(false);
   const [loading, setLoading] = useState(false);
 
@@ -27,8 +29,10 @@ const Login: React.FC = () => {
 
     try {
       if (isRegister) {
-        await register(displayName, email, password);
-        toast.success('Registration successful!');
+        await register(displayName, email, password, requestedRole);
+        toast.success('Account created with public access. Your role request is queued for admin review.');
+        setIsRegister(false);
+        setSearchParams({}, { replace: true });
       } else {
         await login(email, password);
         toast.success('Login successful!');
@@ -54,7 +58,7 @@ const Login: React.FC = () => {
         </div>
         <div className="auth-heading">
           <h1>{isRegister ? 'Create your account' : 'Welcome back'}</h1>
-          <p>{isRegister ? 'Start with access to public knowledge.' : 'Sign in to your secure knowledge workspace.'}</p>
+          <p>{isRegister ? 'Start with public access. An admin reviews higher access requests.' : 'Sign in to your secure knowledge workspace.'}</p>
         </div>
 
         <form className="auth-form" onSubmit={handleSubmit}>
@@ -72,6 +76,8 @@ const Login: React.FC = () => {
               />
             </div>
           )}
+
+          {isRegister && <div className="auth-field"><RoleDropdown value={requestedRole} onChange={setRequestedRole} /></div>}
 
           <div className="auth-field">
             <label htmlFor="auth-email">Email</label>
